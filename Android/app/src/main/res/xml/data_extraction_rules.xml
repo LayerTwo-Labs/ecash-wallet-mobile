@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ (API 31+) backup/transfer rules. Exclude the SkipKeychain EncryptedSharedPreferences
+  ("tools.skip.SkipKeychain", holding the wallet mnemonics) from BOTH cloud backup and
+  device-to-device transfer. The Keystore master key is device-bound, so a transferred/restored
+  copy can't be decrypted — exclude it explicitly to avoid leaking the encrypted blob and to avoid
+  SkipKeychain's silent-wipe-on-restore churn. See docs/key-storage.md.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="tools.skip.SkipKeychain.xml"/>
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="tools.skip.SkipKeychain.xml"/>
+    </device-transfer>
+</data-extraction-rules>

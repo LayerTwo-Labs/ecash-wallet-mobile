@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android auto-backup rules for API ≤30 (legacy `fullBackupContent`).
+  Exclude the SkipKeychain EncryptedSharedPreferences file ("tools.skip.SkipKeychain") — it holds
+  the wallet mnemonics. They're encrypted with a device-bound Android Keystore key that never
+  leaves the device, so a backed-up copy is undecryptable elsewhere AND triggers SkipKeychain's
+  silent-wipe path on restore. Excluding it keeps the only secret we persist out of cloud backup.
+  Everything else (public wallet-list metadata, BDK chain data) may still be backed up.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="tools.skip.SkipKeychain.xml"/>
+</full-backup-content>

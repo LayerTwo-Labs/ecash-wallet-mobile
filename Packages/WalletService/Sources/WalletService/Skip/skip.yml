@@ -1,0 +1,23 @@
+# Skip configuration for the WalletService library — the BDK seam.
+#
+# Transpiled (Skip Lite) so the Kotlin output can `import org.bitcoindevkit.__` directly
+# and type-checked, instead of reaching bdk-android via stringly-typed AnyDynamicObject.
+#
+# `bridging: true` is REQUIRED (runtime-verified 2026-06-12). It makes Skip generate JNI bridges so
+# the Fuse app's native-Swift `WalletManager()` calls FORWARD into this module's transpiled Kotlin
+# (which holds the real bdk-android). WITHOUT it, the Fuse app ran WalletService as native Swift on
+# Android — which can't do BDK — and hit the `notImplemented` stub ("This feature isn't available
+# yet" on create). (An earlier worry that this triggers "missing required module 'CJNI'" does NOT
+# hold in Skip 1.9.2.) Only the bridged surface (WalletManager + value types) crosses the bridge;
+# the BDK engine layer is `public // SKIP @nobridge`. Bridge type rules apply to the bridged surface
+# (no Foundation.Date — see WalletTx.timestampEpochSeconds).
+skip:
+  mode: 'transpiled'
+  bridging: true
+
+build:
+  contents:
+    - block: 'dependencies'
+      contents:
+        # Android BDK binding (mavenCentral). Keep in lock-step with bdk-swift (both 2.3.x).
+        - 'implementation("org.bitcoindevkit:bdk-android:2.3.1")'

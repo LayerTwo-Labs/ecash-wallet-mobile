@@ -1,0 +1,60 @@
+{
+  "originHash" : "dcfaf379b8aecc0aeacb95092aabc18938f7be18ccb8e3421c30014bc546749d",
+  "pins" : [
+    {
+      "identity" : "bdk-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/bitcoindevkit/bdk-swift.git",
+      "state" : {
+        "revision" : "c38d7caa06ec26289cb40b1ea42531aea631c47e",
+        "version" : "2.3.1"
+      }
+    },
+    {
+      "identity" : "skip",
+      "kind" : "remoteSourceControl",
+      "location" : "https://source.skip.tools/skip.git",
+      "state" : {
+        "revision" : "b1e1ecaa28596643799457261fbeca94283be71d",
+        "version" : "1.9.2"
+      }
+    },
+    {
+      "identity" : "skip-foundation",
+      "kind" : "remoteSourceControl",
+      "location" : "https://source.skip.tools/skip-foundation.git",
+      "state" : {
+        "revision" : "1854caad39cc2c9ce18e4d6765c79f026059e67e",
+        "version" : "1.4.1"
+      }
+    },
+    {
+      "identity" : "skip-keychain",
+      "kind" : "remoteSourceControl",
+      "location" : "https://source.skip.tools/skip-keychain.git",
+      "state" : {
+        "revision" : "def9e33d25a5a6c92a4e6ae029d7a2ed3ecdd9d2",
+        "version" : "0.3.2"
+      }
+    },
+    {
+      "identity" : "skip-lib",
+      "kind" : "remoteSourceControl",
+      "location" : "https://source.skip.tools/skip-lib.git",
+      "state" : {
+        "revision" : "76e7da8a870b5b66ea0c3264f648b58b73bcdc0d",
+        "version" : "1.4.0"
+      }
+    },
+    {
+      "identity" : "skip-unit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://source.skip.tools/skip-unit.git",
+      "state" : {
+        "revision" : "c89af47fd645e04db863e938ade39f91e1bb62b8",
+        "version" : "1.7.0"
+      }
+    }
+  ],
+  "version" : 3
+}

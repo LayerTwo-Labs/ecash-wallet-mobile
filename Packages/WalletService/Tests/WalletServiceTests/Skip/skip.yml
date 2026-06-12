@@ -1,0 +1,5 @@
+# Skip configuration for the WalletService test target.
+# Transpiled like the module under test, so `swift test` runs the same XCTest suite on the
+# Swift host and as JUnit/Robolectric on the Android side.
+skip:
+  mode: 'transpiled'
