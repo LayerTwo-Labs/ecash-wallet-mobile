@@ -23,16 +23,18 @@ struct TxRow: View {
 
             VStack(alignment: .leading, spacing: Theme.Space.x2) {
                 HStack(spacing: Theme.Space.x2) {
-                    Text(tx.isReceived ? "Received" : "Sent")
+                    (tx.isReceived
+                        ? Text("Received", bundle: .module, comment: "tx row: incoming")
+                        : Text("Sent", bundle: .module, comment: "tx row: outgoing"))
                         .font(.grotesk(16, .semibold))
                         .foregroundStyle(Theme.Colors.text0)
                     if isPending {
-                        Text("Pending")
+                        Text("Pending", bundle: .module, comment: "tx row: unconfirmed tag")
                             .font(.jbMono(11, .medium))
                             .foregroundStyle(Theme.Colors.warning)
                     }
                 }
-                Text(metaText)
+                Text(metaText, bundle: .module)
                     .font(.jbMono(11, .regular))
                     .foregroundStyle(Theme.Colors.text2)
                     .singleLine()
@@ -42,15 +44,15 @@ struct TxRow: View {
 
             VStack(alignment: .trailing, spacing: Theme.Space.x2) {
                 HStack(spacing: Theme.Space.x1) {
-                    Text(amountText)
+                    Text(verbatim: amountText)
                         .font(.jbMono(14, .medium))
                         .foregroundStyle(tx.isReceived ? Theme.Colors.positive : Theme.Colors.text0)
-                    Text(unitLabel)
+                    Text(verbatim: unitLabel)
                         .font(.jbMono(11, .regular))
                         .foregroundStyle(Theme.Colors.text2)
                 }
                 // Fiat placeholder until the rate service (Settings currency) lands.
-                Text("$0.00")
+                Text(verbatim: "$0.00")
                     .font(.jbMono(12, .regular))
                     .foregroundStyle(Theme.Colors.text2)
             }
@@ -85,15 +87,19 @@ struct TxRow: View {
 
     /// "Today 14:02 · 3 conf" while settling; "· Confirmed" once past 5 confs (the exact count
     /// stops mattering); unconfirmed (no timestamp): "Just now · 0 conf".
-    private var metaText: String {
+    // LocalizedStringKey so the copy localizes via the module catalog; `dateText` stays a plain
+    // String interpolated in (locale-aware date formatting is a later refinement — §10 note).
+    private var metaText: LocalizedStringKey {
         if tx.confirmations > 5 {
             return "\(dateText) · Confirmed"
         }
-        return "\(dateText) · \(tx.confirmations) conf"
+        return "\(dateText) · \(Int(tx.confirmations)) conf"
     }
 
     private var dateText: String {
-        guard let epoch = tx.timestampEpochSeconds else { return "Just now" }
+        guard let epoch = tx.timestampEpochSeconds else {
+            return "Just now"
+        }
         let date = Date(timeIntervalSince1970: TimeInterval(epoch))
         let calendar = Calendar.current
         let time = DateFormatter()

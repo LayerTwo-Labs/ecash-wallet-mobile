@@ -14,8 +14,9 @@ ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor
 INFOPLIST_FILE = Info.plist
 GENERATE_INFOPLIST_FILE = YES
 
-// The user-visible name of the app (localizable)
-//INFOPLIST_KEY_CFBundleDisplayName = App Name
+// The user-visible name of the app (under the icon). Distinct from PRODUCT_NAME, which must stay
+// the Swift module name (ECashWalletMobile).
+INFOPLIST_KEY_CFBundleDisplayName = eCash.com Wallet
 //INFOPLIST_KEY_LSApplicationCategoryType = public.app-category.utilities
 
 // iOS-specific Info.plist property keys

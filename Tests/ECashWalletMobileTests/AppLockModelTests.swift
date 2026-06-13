@@ -18,12 +18,13 @@ import Testing
         var persistCallCount = 0
     }
 
-    private func makeModel(enabled: Bool = true, startLocked: Bool = true)
+    private func makeModel(enabled: Bool = true, startLocked: Bool = true, graceSeconds: Int = 0)
         -> (AppLockModel, Seams) {
         let seams = Seams()
         let model = AppLockModel(
             enabled: enabled,
             startLocked: startLocked,
+            graceSeconds: graceSeconds,
             authenticate: { _ in
                 seams.authCallCount += 1
                 return seams.authResult
@@ -31,7 +32,8 @@ import Testing
             persist: { value in
                 seams.persistCallCount += 1
                 seams.persistedValue = value
-            })
+            },
+            persistGrace: { _ in })
         return (model, seams)
     }
 
@@ -79,16 +81,19 @@ import Testing
     }
 
     @Test func backgroundReArmsLockWhenEnabled() async {
-        let (model, _) = makeModel(enabled: true, startLocked: true)
+        // grace 0 = lock as soon as we return from the background.
+        let (model, _) = makeModel(enabled: true, startLocked: true, graceSeconds: 0)
         await model.unlock()
         #expect(!model.isLocked)
-        model.lockOnBackground()
+        model.markBackgrounded()
+        model.applyForegroundLock()
         #expect(model.isLocked)            // returns locked after backgrounding
     }
 
     @Test func backgroundIsNoOpWhenDisabled() {
         let (model, _) = makeModel(enabled: false, startLocked: false)
-        model.lockOnBackground()
+        model.markBackgrounded()
+        model.applyForegroundLock()
         #expect(!model.isLocked)
     }
 

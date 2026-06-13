@@ -28,7 +28,8 @@ struct WalletHomeScreen: View {
                 .scrollIndicators(.hidden)
                 .refreshable { await app.sync() }
             } else {
-                PlaceholderScreen(heading: "Your wallet", note: "No wallet selected.")
+                PlaceholderScreen(heading: "Your wallet",
+                                  note: "No wallet selected.")
             }
         }
         // Sync the selected wallet against its backend when Home appears (cached balance shows first).
@@ -113,13 +114,13 @@ struct WalletHomeScreen: View {
     @ViewBuilder
     private var recentActivity: some View {
         if app.transactions.isEmpty {
-            Text("No transactions yet")
+            Text("No transactions yet", bundle: .module, comment: "home empty activity")
                 .textStyle(.xs)
                 .foregroundStyle(Theme.Colors.text2)
                 .padding(.top, Theme.Space.x4)
         } else {
             VStack(alignment: .leading, spacing: Theme.Space.x3) {
-                Text("ACTIVITY")
+                Text("ACTIVITY", bundle: .module, comment: "home activity section header")
                     .textStyle(.overline)
                     .foregroundStyle(Theme.Colors.text2)
                 ForEach(app.recentTransactions) { tx in
@@ -152,7 +153,7 @@ struct WalletHomeScreen: View {
         }
     }
 
-    private func actionCircle(icon: String, title: String, prominent: Bool, enabled: Bool,
+    private func actionCircle(icon: String, title: LocalizedStringKey, prominent: Bool, enabled: Bool,
                               action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: Theme.Space.x2) {
@@ -164,7 +165,7 @@ struct WalletHomeScreen: View {
                         .foregroundStyle(prominent ? Theme.Colors.accentText : Theme.Colors.text0)
                 }
                 .frame(width: 56, height: 56)
-                Text(title)
+                Text(title, bundle: .module)
                     .textStyle(.xs)
                     .foregroundStyle(prominent ? Theme.Colors.text0 : Theme.Colors.text1)
             }
@@ -182,7 +183,7 @@ struct WalletHomeScreen: View {
         case .syncing:
             HStack(spacing: Theme.Space.x2) {
                 ProgressView()
-                Text("Syncing…")
+                Text("Syncing…", bundle: .module, comment: "sync in progress")
                     .textStyle(.xs)
                     .foregroundStyle(Theme.Colors.text2)
             }
@@ -208,10 +209,11 @@ struct WalletHomeScreen: View {
             showBackup = true
         } label: {
             VStack(alignment: .leading, spacing: Theme.Space.x1) {
-                Text("Back up your recovery phrase")
+                Text("Back up your recovery phrase", bundle: .module, comment: "home backup nudge title")
                     .textStyle(.sm)
                     .foregroundStyle(Theme.Colors.text0)
-                Text("It's the only way to restore this wallet if you lose the device. Tap to back up now.")
+                Text("It's the only way to restore this wallet if you lose the device. Tap to back up now.",
+                     bundle: .module, comment: "home backup nudge body")
                     .textStyle(.xs)
                     .foregroundStyle(Theme.Colors.text1)
             }

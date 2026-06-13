@@ -192,21 +192,37 @@ public struct WalletTx: Identifiable, Equatable, Hashable, Sendable {
     /// converts to Date for display — "format at the edge only".
     public let timestampEpochSeconds: Int64?
     public let isRBF: Bool
+    /// Height of the block that confirmed this tx; nil while unconfirmed. Signed Int64 for the
+    /// same bridge reason as `confirmations` (no unsigned properties on bridged types).
+    public let blockHeight: Int64?
+    /// Virtual size in vbytes (BIP141 weight units / 4, rounded up). Used to derive the fee rate
+    /// at the display edge. Signed Int64 (see above); nil if unknown.
+    public let vsize: Int64?
 
     public var id: String { txid }
 
     public init(txid: String, netSats: Int64, feeSats: Int64?,
-                confirmations: Int32, timestampEpochSeconds: Int64?, isRBF: Bool) {
+                confirmations: Int32, timestampEpochSeconds: Int64?, isRBF: Bool,
+                blockHeight: Int64? = nil, vsize: Int64? = nil) {
         self.txid = txid
         self.netSats = netSats
         self.feeSats = feeSats
         self.confirmations = confirmations
         self.timestampEpochSeconds = timestampEpochSeconds
         self.isRBF = isRBF
+        self.blockHeight = blockHeight
+        self.vsize = vsize
     }
 
     public var isReceived: Bool { netSats >= 0 }
     public var isConfirmed: Bool { confirmations > 0 }
+
+    /// Fee rate in sat/vByte, or nil if the fee or size is unknown. A method (not a property) so
+    /// the `Double` return never lands on the bridged property surface; computed for display only.
+    public func feeRatePerVByte() -> Double? {
+        guard let feeSats, let vsize, vsize > 0 else { return nil }
+        return Double(feeSats) / Double(vsize)
+    }
 }
 
 // `Codable` lives in EXTENSIONS, not the primary declarations above, on purpose: Skip's bridge

@@ -23,7 +23,7 @@ struct BackupFlowView: View {
                 Theme.Colors.bg0.ignoresSafeArea()
                 content
             }
-            .navigationTitle("Back up")
+            .navigationTitle(Text("Back up", bundle: .module, comment: "backup flow title"))
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     if vm.step != .done {
@@ -67,19 +67,21 @@ struct BackupFlowView: View {
                 .resizable().scaledToFit()
                 .frame(width: 40, height: 40)
                 .foregroundStyle(Theme.Colors.warning)
-            Text("Your recovery phrase")
+            Text("Your recovery phrase", bundle: .module, comment: "backup intro heading")
                 .textStyle(.h1)
                 .foregroundStyle(Theme.Colors.text0)
-            Text("The next screen shows the words that control this wallet. "
-                 + "Anyone who sees them can take your coins.")
+            Text("The next screen shows the words that control this wallet. Anyone who sees them can take your coins.",
+                 bundle: .module, comment: "backup intro warning")
                 .textStyle(.body)
                 .foregroundStyle(Theme.Colors.text1)
-            Text("Write them down on paper, in order. Don't screenshot them, "
-                 + "don't store them in notes or the cloud.")
+            Text("Write them down on paper, in order. Don't screenshot them, don't store them in notes or the cloud.",
+                 bundle: .module, comment: "backup intro instructions")
                 .textStyle(.body)
                 .foregroundStyle(Theme.Colors.text1)
             Spacer()
-            WalletButton(title: vm.step == .authenticating ? "Unlocking…" : "I understand — show me") {
+            WalletButton(title: vm.step == .authenticating
+                            ? "Unlocking…"
+                            : "I understand — show me") {
                 Task { await vm.begin() }
             }
             .disabled(vm.step == .authenticating)
@@ -93,11 +95,13 @@ struct BackupFlowView: View {
     private var reveal: some View {
         VStack(alignment: .leading, spacing: Theme.Space.x4) {
             if vm.verifyMissed {
-                Text("That wasn't quite right — check your copy against the words below.")
+                Text("That wasn't quite right — check your copy against the words below.",
+                     bundle: .module, comment: "backup verify retry hint")
                     .textStyle(.sm)
                     .foregroundStyle(Theme.Colors.negative)
             }
-            Text("Write these \(vm.words.count) words down, in order.")
+            Text("Write these \(vm.words.count) words down, in order.",
+                 bundle: .module, comment: "backup reveal instruction; %lld is the word count")
                 .textStyle(.body)
                 .foregroundStyle(Theme.Colors.text1)
 
@@ -129,7 +133,7 @@ struct BackupFlowView: View {
 
     private func wordChip(index: Int) -> some View {
         HStack(spacing: Theme.Space.x2) {
-            Text("\(index + 1)")
+            Text(verbatim: "\(index + 1)")   // word position number, not translatable copy
                 .font(.jbMono(12, .medium))
                 .foregroundStyle(Theme.Colors.text2)
                 .frame(width: 22, alignment: .trailing)
@@ -149,10 +153,12 @@ struct BackupFlowView: View {
     private var verify: some View {
         VStack(alignment: .leading, spacing: Theme.Space.x5) {
             if let question = vm.currentQuestion {
-                Text("Check \(vm.questionIndex + 1) of \(vm.questions.count)")
+                Text("Check \(vm.questionIndex + 1) of \(vm.questions.count)",
+                     bundle: .module, comment: "backup verify progress; e.g. Check 1 of 3")
                     .textStyle(.overline)
                     .foregroundStyle(Theme.Colors.text2)
-                Text("Which was word #\(question.wordIndex + 1)?")
+                Text("Which was word #\(question.wordIndex + 1)?",
+                     bundle: .module, comment: "backup verify question; %lld is the word position")
                     .textStyle(.h2)
                     .foregroundStyle(Theme.Colors.text0)
 
@@ -189,10 +195,11 @@ struct BackupFlowView: View {
                 .resizable().scaledToFit()
                 .frame(width: 44, height: 44)
                 .foregroundStyle(Theme.Colors.positive)
-            Text("Backed up")
+            Text("Backed up", bundle: .module, comment: "backup done heading")
                 .textStyle(.h2)
                 .foregroundStyle(Theme.Colors.text0)
-            Text("Keep those words safe — they're the only way to restore this wallet.")
+            Text("Keep those words safe — they're the only way to restore this wallet.",
+                 bundle: .module, comment: "backup done note")
                 .textStyle(.sm)
                 .foregroundStyle(Theme.Colors.text1)
                 .multilineTextAlignment(.center)

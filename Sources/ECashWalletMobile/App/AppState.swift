@@ -38,6 +38,7 @@ final class AppState {
 
     private static let selectedWalletKey = "selectedWalletId"
     private static let appLockKey = "appLockEnabled"
+    private static let appLockGraceKey = "appLockGraceSeconds"
 
     /// App-lock gate (biometric/passcode on launch + foreground resume). Default ON.
     let appLock: AppLockModel
@@ -63,11 +64,15 @@ final class AppState {
         // (a fresh install with no wallet is never gated). `object(forKey:) as? Bool` so an unset
         // default reads as ON rather than `bool(forKey:)`'s false.
         let lockEnabled = UserDefaults.standard.object(forKey: Self.appLockKey) as? Bool ?? true
+        // Background grace before re-lock; default 10s (unset → 10, not `integer(forKey:)`'s 0).
+        let grace = UserDefaults.standard.object(forKey: Self.appLockGraceKey) as? Int ?? 10
         appLock = AppLockModel(
             enabled: lockEnabled,
             startLocked: lockEnabled && manager.hasWallets,
+            graceSeconds: grace,
             authenticate: { reason in await DeviceAuth.authenticate(reason: reason) },
-            persist: { UserDefaults.standard.set($0, forKey: Self.appLockKey) })
+            persist: { UserDefaults.standard.set($0, forKey: Self.appLockKey) },
+            persistGrace: { UserDefaults.standard.set($0, forKey: Self.appLockGraceKey) })
         refresh()
     }
 
@@ -237,9 +242,17 @@ final class AppState {
             transactions = sorted((try? manager.transactions(walletId: id)) ?? [])
             syncState = .idle
         } catch let error as WalletError {
-            syncState = .failed(error.userMessage)
+            // We're in a sync: surface a sync/connection-framed message. Specific, actionable
+            // errors (e.g. a network mismatch) keep their own text; the generic catch-all
+            // (`.engine`) is far more useful framed as a sync failure than "something went wrong".
+            switch error {
+            case .engine, .persistenceFailed:
+                syncState = .failed(WalletError.syncFailed.userMessage)
+            default:
+                syncState = .failed(error.userMessage)
+            }
         } catch {
-            syncState = .failed("Couldn't sync with the network. Try again.")
+            syncState = .failed(WalletError.syncFailed.userMessage)
         }
     }
 
@@ -261,11 +274,14 @@ final class AppState {
     /// TEMP (remove): sample transactions to verify the activity-row layout without on-chain funds.
     static let sampleTransactions: [WalletTx] = [
         WalletTx(txid: "sample-pending", netSats: -125000, feeSats: 200,
-                 confirmations: 0, timestampEpochSeconds: nil, isRBF: true),
+                 confirmations: 0, timestampEpochSeconds: nil, isRBF: true,
+                 blockHeight: nil, vsize: 141),
         WalletTx(txid: "sample-recv", netSats: 200_000_000, feeSats: nil,
-                 confirmations: 7, timestampEpochSeconds: Int64(1_718_200_000), isRBF: true),
+                 confirmations: 7, timestampEpochSeconds: Int64(1_718_200_000), isRBF: true,
+                 blockHeight: 196_842, vsize: 222),
         WalletTx(txid: "sample-sent", netSats: -400_000, feeSats: 180,
-                 confirmations: 24, timestampEpochSeconds: Int64(1_718_100_000), isRBF: false),
+                 confirmations: 24, timestampEpochSeconds: Int64(1_718_100_000), isRBF: false,
+                 blockHeight: 196_825, vsize: 110),
     ]
 
     /// Newest first, with unconfirmed (pending) txs at the top. Unconfirmed have no timestamp, so

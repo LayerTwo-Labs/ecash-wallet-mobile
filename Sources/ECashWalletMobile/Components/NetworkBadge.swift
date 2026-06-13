@@ -25,7 +25,7 @@ struct NetworkBadge: View {
         if isMainnet {
             EmptyView()
         } else {
-            Text(name)
+            Text(verbatim: name)   // network display name (proper noun, from NetworkRegistry)
                 .textStyle(.overline) // uppercased + tracked
                 .foregroundStyle(Theme.Colors.netTestnetText)
                 .padding(.horizontal, Theme.Space.x3)

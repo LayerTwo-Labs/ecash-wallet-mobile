@@ -16,7 +16,7 @@ struct LockScreen: View {
             VStack(spacing: Theme.Space.x4) {
                 Spacer()
                 Logo(size: 72)
-                Text("eCash.com Wallet")
+                Text("eCash.com Wallet", bundle: .module, comment: "app name (product name — usually left untranslated)")
                     .textStyle(.h2)
                     .foregroundStyle(Theme.Colors.text0)
                 HStack(spacing: Theme.Space.x2) {
@@ -24,12 +24,14 @@ struct LockScreen: View {
                         .resizable().scaledToFit()
                         .frame(width: 14, height: 14)
                         .foregroundStyle(Theme.Colors.text2)
-                    Text("Locked")
+                    Text("Locked", bundle: .module, comment: "lock screen status")
                         .textStyle(.sm)
                         .foregroundStyle(Theme.Colors.text1)
                 }
                 Spacer()
-                WalletButton(title: app.appLock.authenticating ? "Unlocking…" : "Unlock") {
+                WalletButton(title: app.appLock.authenticating
+                                ? "Unlocking…"
+                                : "Unlock") {
                     Task { await app.appLock.unlock() }
                 }
                 .disabled(app.appLock.authenticating)

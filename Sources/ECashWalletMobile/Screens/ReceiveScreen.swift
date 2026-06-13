@@ -21,7 +21,7 @@ struct ReceiveScreen: View {
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Theme.Colors.bg0)
-                .navigationTitle("Receive")
+                .navigationTitle(Text("Receive", bundle: .module, comment: "receive screen title"))
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         ConfirmToolbarButton { dismiss() }
@@ -49,7 +49,8 @@ struct ReceiveScreen: View {
                         .font(.jbMono(14, .regular))
                         .foregroundStyle(Theme.Colors.text0)
                         .multilineTextAlignment(.center)
-                    Text("Only send \(params.unitLabel) on \(params.displayName) to this address.")
+                    Text("Only send \(params.unitLabel) on \(params.displayName) to this address.",
+                         bundle: .module, comment: "receive warning; %1$@ is the unit, %2$@ the network")
                         .textStyle(.xs)
                         .foregroundStyle(Theme.Colors.text2)
                         .multilineTextAlignment(.center)
@@ -68,7 +69,9 @@ struct ReceiveScreen: View {
                         }
                     } label: {
                         actionLabel(icon: copied ? Icon.check : Icon.copy,
-                                    title: copied ? "Copied" : "Copy")
+                                    title: copied
+                                        ? "Copied"
+                                        : "Copy")
                     }
                     .buttonStyle(.plain)
                     .frame(maxWidth: .infinity)
@@ -87,7 +90,7 @@ struct ReceiveScreen: View {
                 } label: {
                     HStack(spacing: Theme.Space.x1) {
                         Image(icon: Icon.refresh).resizable().scaledToFit().frame(width: 14, height: 14)
-                        Text("New address").textStyle(.sm)
+                        Text("New address", bundle: .module, comment: "receive: reveal a fresh address").textStyle(.sm)
                     }
                     .foregroundStyle(Theme.Colors.text1)
                 }
@@ -98,15 +101,16 @@ struct ReceiveScreen: View {
             .frame(maxWidth: .infinity)
             .padding(Theme.Space.gutter)
         } else {
-            PlaceholderScreen(heading: "Receive", note: "No wallet selected.")
+            PlaceholderScreen(heading: "Receive",
+                              note: "No wallet selected.")
         }
     }
 
     /// A bordered, full-width action chip (matches the secondary `WalletButton` look).
-    private func actionLabel(icon: String, title: String) -> some View {
+    private func actionLabel(icon: String, title: LocalizedStringKey) -> some View {
         HStack(spacing: Theme.Space.x2) {
             Image(icon: icon).resizable().scaledToFit().frame(width: 16, height: 16)
-            Text(title).textStyle(.button)
+            Text(title, bundle: .module).textStyle(.button)
         }
         .foregroundStyle(Theme.Colors.text0)
         .frame(maxWidth: .infinity)

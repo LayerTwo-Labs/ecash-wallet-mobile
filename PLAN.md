@@ -293,6 +293,13 @@ it; only "New address" advances the reveal index).
 ### Slice 7 — Settings + Wallet manager  🟡
 - [x] Theme (System/Light/Dark), About/version, dev "Reset all wallet data" (full purge);
       Security row → Backup flow.
+- [x] **Open-source licenses screen (2026-06-13):** Settings → About → "Open-source licenses"
+      pushes a native grouped list of every shipped dependency/font/icon set with its SPDX license,
+      each row linking out. **Single source of truth:** `OpenSourceLicense.all` (one struct +
+      array in `App/OpenSourceLicense.swift`); the screen (`LicensesScreen`) just renders it, so
+      adding a credit is a one-line edit. Mirrored in the README acknowledgements table.
+      *(TODO for release: bundle the full license texts/notices — MIT/Apache/OFL require them;
+      currently we link out. Tracked in Milestone F.)*
 - [x] **Wallet switcher + manager (2026-06-12):** Home-header pill (initial avatar + label +
       chevron, per Jake's mock) → manager sheet: per-wallet rows (avatar, label, network,
       backup state, selected check), tap-to-switch (per-wallet state fully reset — §5),
@@ -320,6 +327,14 @@ it; only "New address" advances the reveal index).
       demand item below. Live Android gate re-verify pending a stable emulator — current AVD's GMS
       subsystem degraded after heavy cycling; auth mechanism already proven via Backup.
       Per-SEND re-auth has since landed — see Slice 5's per-send device-auth gate.)*
+  - [x] **Background grace window (2026-06-13):** Settings → Security → **Auto-lock**
+        (Immediately / 10s / 30s / 1 min / 5 min, default 10s, persisted). The foreground gate
+        stamps the background time and re-locks on return only if the gap exceeded the grace — so a
+        quick hop to another app (copy an address) doesn't re-prompt. `RootView`
+        `markBackgrounded()` / `applyForegroundLock()`. **Privacy cover (`PrivacyCover`):** a
+        full-screen brand cover (logo on `bg0`) raised instantly on `.inactive`/`.background` so the
+        app-switcher snapshot never shows balances/addresses (the grace window leaves the app
+        unlocked), faded out (ease 0.28s) on return so it isn't abrupt.
 - [x] **UI consistency pass (2026-06-13):** every modal/sheet uses the platform-native
       dismiss/commit affordances instead of spelled-out "Cancel"/"Done" buttons — shared
       `CloseToolbarButton` (iOS `Button(role: .close)` → system X) and `ConfirmToolbarButton`
@@ -329,13 +344,22 @@ it; only "New address" advances the reveal index).
       Android focus border, even inner padding on both platforms); scrollbars hidden
       (`.scrollIndicators(.hidden)`); real brand accent wired (`rgb(232,168,74)` as float
       colorset so it renders amber on Android, not black).
-- [ ] **Secret-scrub audit** — no seed/xprv/descriptor-with-keys in any log/error/analytics/
-      crash path (automated assertion + manual pass).
+- [x] **Secret-scrub audit (2026-06-13)** — no seed/xprv/descriptor-with-keys in any log/error/
+      analytics/crash path. **Manual pass:** the only logging in the app is lifecycle `logger.debug`
+      in the app entry (no secrets); WalletService logs nothing; the only two raw-error touch points
+      (`WalletEngine`/`BDKWalletEngineFactory`) both route through `WalletError.mapping(rawDescription:)`,
+      which *inspects* but never echoes raw text, and `.engine(_)` is only ever constructed with a
+      fixed string. **Automated assertion:** `WalletErrorTests.testMappingNeverLeaksAcrossRealisticBDKErrorShapes`
+      feeds realistic BDK/Miniscript/Bip32 error strings embedding fake xprv/tprv/tpub/mnemonic/
+      descriptor material and asserts none survives in the user message (both platforms).
 - [ ] **Maestro smoke flow** — create → receive → see address, on both platforms
       (skip-ui-automation); `.accessibilityIdentifier()` on interactive views.
 - [ ] **Real brand** — drop in real color tokens + accent, confirm fonts, finalize logo/vector
       drawable (§14 #1–4).
 - [ ] **Real backends** — production Electrum/Esplora endpoints per network (§14 #5).
+- [ ] **Open-source license texts** — bundle the full license/notice text for each dependency
+      (MIT/Apache-2.0/OFL-1.1 require it); extend `OpenSourceLicense` with a notice + a detail
+      screen. The attributions list itself already ships (Settings → Open-source licenses).
 - [ ] **Release** — signing (iOS + Android), ProGuard, app icons (`skip icon`), Skip.env
       metadata, CI (skip-deployment). Performance checks on a **Release** build on-device.
 

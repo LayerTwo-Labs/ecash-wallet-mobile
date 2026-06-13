@@ -13,6 +13,7 @@ import SwiftUI
 struct RootView: View {
     @AppStorage("appearance") var appearance = ""   // "" = system · "light" · "dark"
     @State var app = AppState()
+    @State var privacyCovered = false   // not `private` — Fuse bridges @State (skip-fuse rule)
     @Environment(\.scenePhase) var scenePhase
 
     var body: some View {
@@ -30,11 +31,33 @@ struct RootView: View {
         .tint(Theme.Colors.accent)
         .preferredColorScheme(appearance == "dark" ? .dark
                               : appearance == "light" ? .light : nil)
-        // Re-arm the lock when the app is backgrounded; the lock screen re-prompts on return.
-        // (Snapshot privacy in the app switcher is handled separately by obscuredWhenBackgrounded.)
+        // Privacy cover: hides balances/addresses from the app-switcher snapshot whenever the app
+        // isn't active (covers the app-lock grace window, where the lock screen isn't shown). Kept
+        // in the hierarchy at opacity 0 and driven by `privacyCovered` — see the scenePhase handler.
+        .overlay {
+            PrivacyCover()
+                .opacity(privacyCovered ? 1 : 0)
+                .allowsHitTesting(false)
+                .ignoresSafeArea()
+        }
+        // App-lock grace window + privacy cover, both keyed off scenePhase:
+        //  • leaving the foreground (`.inactive`/`.background`) → raise the cover INSTANTLY (no
+        //    animation) so the OS snapshot is already obscured; `.background` also stamps the
+        //    grace clock (we don't lock yet — a quick round-trip skips re-auth).
+        //  • returning (`.active`) → re-lock iff we were away past the grace window, and FADE the
+        //    cover out so the reveal isn't abrupt.
         .onChange(of: scenePhase) { _, phase in
-            if phase == .background {
-                app.appLock.lockOnBackground()
+            switch phase {
+            case .inactive:
+                privacyCovered = true
+            case .background:
+                privacyCovered = true
+                app.appLock.markBackgrounded()
+            case .active:
+                app.appLock.applyForegroundLock()
+                withAnimation(.easeOut(duration: 0.28)) { privacyCovered = false }
+            default:
+                break
             }
         }
     }

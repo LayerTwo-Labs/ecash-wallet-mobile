@@ -153,14 +153,17 @@ public final class WalletEngine: WalletEngineProtocol {
             // ChainPosition diverges: Swift enum with associated values vs Kotlin sealed class.
             let confirmations: Int32
             let timestamp: Int64?
+            let blockHeight: Int64?
             #if SKIP
             if let confirmed = canonical.chainPosition as? ChainPosition.Confirmed {
                 let confHeight = confirmed.confirmationBlockTime.blockId.height
                 confirmations = tipHeight >= confHeight ? Int32(tipHeight - confHeight + UInt32(1)) : 0
                 timestamp = Int64(confirmed.confirmationBlockTime.confirmationTime)
+                blockHeight = Int64(confHeight)
             } else {
                 confirmations = 0
                 timestamp = nil
+                blockHeight = nil
             }
             #else
             switch canonical.chainPosition {
@@ -168,9 +171,11 @@ public final class WalletEngine: WalletEngineProtocol {
                 let confHeight = confirmationBlockTime.blockId.height
                 confirmations = tipHeight >= confHeight ? Int32(tipHeight - confHeight + UInt32(1)) : 0
                 timestamp = Int64(confirmationBlockTime.confirmationTime)
+                blockHeight = Int64(confHeight)
             case .unconfirmed:
                 confirmations = 0
                 timestamp = nil
+                blockHeight = nil
             }
             #endif
 
@@ -179,7 +184,9 @@ public final class WalletEngine: WalletEngineProtocol {
                                    feeSats: feeSats,
                                    confirmations: confirmations,
                                    timestampEpochSeconds: timestamp,
-                                   isRBF: tx.isExplicitlyRbf()))
+                                   isRBF: tx.isExplicitlyRbf(),
+                                   blockHeight: blockHeight,
+                                   vsize: Int64(tx.vsize())))
         }
         return result
     }
@@ -273,7 +280,9 @@ public final class WalletEngine: WalletEngineProtocol {
                         feeSats: feeSats,
                         confirmations: 0,
                         timestampEpochSeconds: nil,
-                        isRBF: tx.isExplicitlyRbf())
+                        isRBF: tx.isExplicitlyRbf(),
+                        blockHeight: nil,
+                        vsize: Int64(tx.vsize()))
     }
 
     /// Sync against the wallet's Electrum backend.

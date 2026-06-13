@@ -103,18 +103,51 @@ Abbreviated — see `PLAN.md` for the detailed, tracked checklist.  ✅ done · 
   "New address" advances on demand)
 - ✅ **Slice 5 — Send** (paste address/BIP21 → custom keypad amount → fee tier → review w/ network →
   sign → broadcast → optimistic pending row; full-screen flow)
-- 🟡 **Slice 6 — Transaction history** (mock-styled rows + tap-for-detail sheet with explorer link ✅;
-  pull-to-refresh + fiat values ⬜)
+- 🟡 **Slice 6 — Transaction history** (rows + redesigned detail sheet — amount/fee/total, **fee rate,
+  block height, size**, RBF, txid, big block-explorer button — and pull-to-refresh ✅; fiat values ⬜)
 - 🟡 **Slice 7 — Settings + Wallet manager** (theme, dev reset, backup row, wallet switcher pill +
-  manager sheet with switch/rename/add/import/remove + persistent selection ✅; endpoints, fiat, app-lock ⬜)
+  manager sheet with switch/rename/add/import/remove + persistent selection, app-lock toggle, and an
+  **open-source licenses** screen ✅; per-network endpoints + fiat ⬜)
 - ✅ **Slice 4 — Import wallet** (12/24-word restore, BDK-validated, non-leaky errors; verified
   against the BIP39/BIP84 spec vectors)
 - ✅ **Slice 3 — Backup wallet** (explicit gate → biometric/passcode → word chips → 3-word verify;
   capture-blocked: FLAG_SECURE on Android, obscured-when-backgrounded on iOS; clears the Home warning)
 - 🟡 **Milestone F — Hardening & release:** app-lock ✅ (biometric/passcode gate on launch +
-  foreground, Settings toggle, default ON); secret-scrub audit, UI smoke flows, real brand, signing/CI ⬜.
+  foreground, Settings toggle, default ON); secret-scrub audit ✅; localization pass ✅;
+  UI smoke flows, real brand, signing/CI ⬜.
 - 🧪 **Tests:** WalletService parity suite (Robolectric, both platforms) + 47 app view-model tests
   (Swift Testing, host `swift test`): Send, Backup, Import, Create, AppLock state machines.
+
+## Security model
+
+Your keys stay on your device, and the app is built to keep them exposed as little as possible.
+
+- **Keys never leave the device.** The recovery phrase (and *only* the phrase) is stored in the OS
+  secure store — iOS **Keychain** (`WhenUnlockedThisDeviceOnly`, no iCloud sync) / Android
+  **Keystore-backed encrypted storage** — keyed per wallet. Everything else (xpub descriptors,
+  labels, the transaction cache) is public data.
+- **BDK owns all cryptography.** Key derivation, signing, PSBT building, and coin selection are
+  handled by the [Bitcoin Dev Kit](https://bitcoindevkit.org) — no hand-rolled crypto.
+- **Watch-only + sign-on-demand.** Day-to-day the wallet runs **watch-only**: balance, address
+  derivation, syncing, and even building a transaction use only the *public* descriptors — the
+  secret store is never read. Your phrase is loaded for exactly one purpose, at one moment: to
+  **sign** a transaction you've confirmed. It's pulled into a transient in-memory signer, used, and
+  dropped — so the private key's lifetime in memory is a single signing operation.
+- **Nothing secret on disk, nothing secret in logs.** Only public data is persisted. Errors are
+  typed and scrubbed before they reach the UI or any log — a signing failure says "signing failed,"
+  never the key (enforced by an automated no-leak test).
+- **Device-auth gates.** Optional biometric/passcode lock on launch and on returning to the
+  foreground (with a configurable grace window so a quick trip to another app doesn't re-prompt),
+  plus an independent auth gate on the **confirm-send** step. On a device with no biometric/passcode
+  enrolled the gate passes through rather than locking you out.
+- **Guarded backup.** Revealing the phrase is behind an explicit gate + device auth, screenshots are
+  blocked during the reveal (Android `FLAG_SECURE`; obscured in the iOS app switcher), and you
+  confirm a few words before it's marked backed up.
+- **Clean removal.** Removing a wallet purges its phrase from the secure store plus all of its
+  on-device data.
+
+The decision records behind this live in `docs/key-storage.md` and `docs/key-derivation.md`; the
+non-negotiable rules are CLAUDE.md §2 (Golden Rules) and §7 (Security model).
 
 ## Docs
 
@@ -125,6 +158,26 @@ Abbreviated — see `PLAN.md` for the detailed, tracked checklist.  ✅ done · 
 - `docs/key-derivation.md` — key-derivation decision record (BIP84, coin-types, eCash params).
 - `docs/key-storage.md` — key-storage / secrets decision record (what's persisted, Keychain/Keystore, backup, app-lock).
 - `docs/accounts-and-labels.md` — design record for multi-account-per-seed (savings/checking) + per-key-pair labels/metadata (post-v1; app-owned, not BDK).
+
+## Open source & acknowledgements
+
+eCash.com Wallet stands on these projects. The same list is shown in-app under **Settings → About →
+Open-source licenses**, sourced from a single array (`OpenSourceLicense.all` in
+`Sources/ECashWalletMobile/App/OpenSourceLicense.swift`) — add or edit a credit there and both the
+app screen and this table should be kept in sync.
+
+| Project | Use | License |
+|---|---|---|
+| [Skip](https://skip.tools) | Swift→Kotlin cross-platform toolchain + frameworks | MPL-2.0 |
+| [Bitcoin Dev Kit](https://bitcoindevkit.org) (`bdk-swift` / `bdk-android`) | Wallet engine | Apache-2.0 / MIT |
+| [SkipKeychain](https://source.skip.tools/skip-keychain) | Secure mnemonic storage | LGPL-3.0 |
+| [swift-qrcode-generator](https://github.com/fwcd/swift-qrcode-generator) | Receive QR codes | MIT |
+| [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono) | Mono / numeric typeface | OFL-1.1 |
+| [Space Grotesk](https://github.com/floriankarsten/space-grotesk) | Display typeface | OFL-1.1 |
+| [Material Symbols](https://github.com/google/material-design-icons) | Icon set (`.symbolset`) | Apache-2.0 |
+
+> Release note: bundling the **full license texts / copyright notices** (required by MIT/Apache/OFL)
+> is still TODO — the in-app screen currently links out. See `PLAN.md` Milestone F.
 
 ## License
 

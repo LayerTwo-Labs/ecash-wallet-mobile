@@ -35,7 +35,7 @@ struct ActivityScreen: View {
                 .refreshable { await app.sync() }
             }
         }
-        .navigationTitle("Activity")
+        .navigationTitle(Text("Activity", bundle: .module, comment: "activity screen title"))
         .task { await app.sync() }
         .sheet(item: $detailTx) { tx in
             if let wallet = app.selectedWallet {

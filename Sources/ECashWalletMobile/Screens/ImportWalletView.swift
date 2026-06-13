@@ -30,12 +30,12 @@ struct ImportWalletView: View {
                 // Network identity, up front and unmistakable (Golden Rule §6).
                 NetworkBadge(name: "Signet", isMainnet: false)
 
-                Text("Restore from recovery phrase")
+                Text("Restore from recovery phrase", bundle: .module, comment: "import wallet heading")
                     .textStyle(.h1)
                     .foregroundStyle(Theme.Colors.text0)
 
-                Text("Enter your 12 or 24 word phrase, separated by spaces. "
-                     + "It never leaves this device.")
+                Text("Enter your 12 or 24 word phrase, separated by spaces. It never leaves this device.",
+                     bundle: .module, comment: "import wallet instructions")
                     .textStyle(.body)
                     .foregroundStyle(Theme.Colors.text1)
 
@@ -56,7 +56,7 @@ struct ImportWalletView: View {
                     .onChange(of: vm.phrase) { _, _ in vm.phraseEdited() }
 
                 // Live word count — quiet guidance, no judgment until submit.
-                Text(wordCountText)
+                Text(wordCountText, bundle: .module)
                     .textStyle(.xs)
                     .foregroundStyle(Theme.Colors.text2)
 
@@ -77,7 +77,9 @@ struct ImportWalletView: View {
 
                 Spacer()
 
-                WalletButton(title: vm.isImporting ? "Importing…" : "Import wallet") {
+                WalletButton(title: vm.isImporting
+                                ? "Importing…"
+                                : "Import wallet") {
                     let trimmed = walletName.trimmingCharacters(in: .whitespacesAndNewlines)
                     vm.submit(label: trimmed.isEmpty ? defaultName : String(trimmed.prefix(24)),
                               network: .signet)
@@ -87,13 +89,13 @@ struct ImportWalletView: View {
             }
             .padding(Theme.Space.gutter)
         }
-        .navigationTitle("Import wallet")
+        .navigationTitle(Text("Import wallet", bundle: .module, comment: "import wallet screen title"))
         .onAppear { PlatformBridge.setSecureScreen(true) }
         .onDisappear { PlatformBridge.setSecureScreen(false) }
         .obscuredWhenBackgrounded()
     }
 
-    private var wordCountText: String {
+    private var wordCountText: LocalizedStringKey {
         let count = vm.wordCount
         if count == 0 { return "12 or 24 words" }
         if count == 1 { return "1 word" }

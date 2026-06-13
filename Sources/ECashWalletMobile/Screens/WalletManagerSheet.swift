@@ -39,7 +39,7 @@ struct WalletManagerSheet: View {
                 }
             }
             .groupedListStyle()
-            .navigationTitle("Wallets")
+            .navigationTitle(Text("Wallets", bundle: .module, comment: "wallet manager title"))
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     ConfirmToolbarButton { dismiss() }
@@ -74,7 +74,13 @@ struct WalletManagerSheet: View {
             }
             Button("Cancel", role: .cancel) { removeTarget = nil }
         } message: {
-            Text(removeMessage)
+            if removeTarget?.isBackedUp == true {
+                Text("This deletes the wallet from this device. You can restore it later with its recovery phrase.",
+                     bundle: .module, comment: "remove backed-up wallet warning")
+            } else {
+                Text("This wallet is NOT backed up. Removing it without the recovery phrase means its coins are lost forever.",
+                     bundle: .module, comment: "remove not-backed-up wallet warning")
+            }
         }
     }
 
@@ -97,7 +103,7 @@ struct WalletManagerSheet: View {
                         Text(wallet.label)
                             .textStyle(.body)
                             .foregroundStyle(Theme.Colors.text0)
-                        Text(metaText(wallet))
+                        Text(metaText(wallet), bundle: .module)
                             .textStyle(.xs)
                             .foregroundStyle(wallet.isBackedUp ? Theme.Colors.text2 : Theme.Colors.warning)
                     }
@@ -137,15 +143,17 @@ struct WalletManagerSheet: View {
         }
     }
 
-    private func metaText(_ wallet: ManagedWallet) -> String {
+    // LocalizedStringKey rendered via Text(_, bundle:) — Fuse-compatible. Backed-up rows just show
+    // the network name; the not-backed-up suffix localizes. (%@ is the network name.)
+    private func metaText(_ wallet: ManagedWallet) -> LocalizedStringKey {
         let network = NetworkRegistry.params(for: wallet.network).displayName
-        return wallet.isBackedUp ? network : "\(network) · Not backed up"
+        return wallet.isBackedUp ? "\(network)" : "\(network) · Not backed up"
     }
 
-    private func actionRowLabel(icon: String, title: String) -> some View {
+    private func actionRowLabel(icon: String, title: LocalizedStringKey) -> some View {
         HStack(spacing: Theme.Space.x2) {
             Image(icon: icon).resizable().scaledToFit().frame(width: 16, height: 16)
-            Text(title).textStyle(.body)
+            Text(title, bundle: .module).textStyle(.body)
         }
         .foregroundStyle(Theme.Colors.accent)
     }
@@ -162,7 +170,8 @@ struct WalletManagerSheet: View {
                         .autocorrectionDisabled()
                         .fieldBoxInset()
                         .background(Theme.Colors.bg2, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
-                    Text("Names are stored only on this device — they don't travel with the recovery phrase.")
+                    Text("Names are stored only on this device — they don't travel with the recovery phrase.",
+                         bundle: .module, comment: "rename wallet explainer")
                         .textStyle(.xs)
                         .foregroundStyle(Theme.Colors.text2)
                     WalletButton(title: "Save") {
@@ -175,7 +184,7 @@ struct WalletManagerSheet: View {
                 }
                 .padding(Theme.Space.gutter)
             }
-            .navigationTitle("Rename wallet")
+            .navigationTitle(Text("Rename wallet", bundle: .module, comment: "rename wallet sheet title"))
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     CloseToolbarButton { renameTarget = nil }
@@ -188,16 +197,9 @@ struct WalletManagerSheet: View {
         Binding(get: { removeTarget != nil }, set: { if !$0 { removeTarget = nil } })
     }
 
-    private var removeTitle: String {
+    // LocalizedStringKey for the confirmationDialog title (%@ is the wallet name).
+    private var removeTitle: LocalizedStringKey {
         "Remove \(removeTarget?.label ?? "wallet")?"
-    }
-
-    private var removeMessage: String {
-        guard let wallet = removeTarget else { return "" }
-        if wallet.isBackedUp {
-            return "This deletes the wallet from this device. You can restore it later with its recovery phrase."
-        }
-        return "This wallet is NOT backed up. Removing it without the recovery phrase means its coins are lost forever."
     }
 }
 

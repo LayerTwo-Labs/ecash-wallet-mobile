@@ -10,13 +10,16 @@ import SwiftUI
 struct WalletButton: View {
     enum Kind { case primary, secondary }
 
-    let title: String
+    // LocalizedStringKey + `Text(_, bundle: .module)` is the Fuse-compatible localization form:
+    // call-site literals localize via the module catalog on both platforms. (Skip's `String(localized:
+    // bundle:comment:)` does NOT compile in the Fuse native-Android pass.) See CLAUDE.md §10.
+    let title: LocalizedStringKey
     var kind: Kind = .primary
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Text(title)
+            Text(title, bundle: .module)
                 .textStyle(.button)
                 .foregroundStyle(kind == .primary ? Theme.Colors.accentText : Theme.Colors.text0)
                 .frame(maxWidth: .infinity)

@@ -17,7 +17,7 @@ struct WelcomeView: View {
                 Spacer()
                 VStack(spacing: Theme.Space.x5) {
                     Logo(size: 112)
-                    Text("eCash.com Wallet")
+                    Text("eCash.com Wallet", bundle: .module, comment: "app name (product name — usually left untranslated)")
                         .textStyle(.h1)
                         .foregroundStyle(Theme.Colors.text0)
                 }
@@ -26,7 +26,8 @@ struct WelcomeView: View {
                     WalletButton(title: "Create new wallet", action: onCreate)
                     WalletButton(title: "Import existing wallet", kind: .secondary, action: onImport)
 
-                    Text("Your keys never leave this device. By continuing you accept the terms.")
+                    Text("Your keys never leave this device. By continuing you accept the terms.",
+                         bundle: .module, comment: "welcome footer disclaimer")
                         .textStyle(.xs)
                         .foregroundStyle(Theme.Colors.text2)
                         .multilineTextAlignment(.center)

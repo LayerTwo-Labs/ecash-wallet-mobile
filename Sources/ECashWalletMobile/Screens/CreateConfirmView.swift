@@ -29,12 +29,12 @@ struct CreateConfirmView: View {
                 // Network identity, up front and unmistakable (Golden Rule §6).
                 NetworkBadge(name: "Signet", isMainnet: false)
 
-                Text("Your keys, your coins")
+                Text("Your keys, your coins", bundle: .module, comment: "create wallet heading")
                     .textStyle(.h1)
                     .foregroundStyle(Theme.Colors.text0)
 
-                Text("This wallet lives only on this device. Your recovery phrase is the only way to "
-                     + "restore it — not even we can recover it for you. You'll back it up right after.")
+                Text("This wallet lives only on this device. Your recovery phrase is the only way to restore it — not even we can recover it for you. You'll back it up right after.",
+                     bundle: .module, comment: "create wallet self-custody explainer")
                     .textStyle(.body)
                     .foregroundStyle(Theme.Colors.text1)
 
@@ -47,7 +47,9 @@ struct CreateConfirmView: View {
 
                 Spacer()
 
-                WalletButton(title: vm.isCreating ? "Creating…" : "Continue") {
+                WalletButton(title: vm.isCreating
+                                ? "Creating…"
+                                : "Continue") {
                     vm.submit(label: defaultName, network: .signet)
                 }
                 .disabled(vm.isCreating)
@@ -55,6 +57,6 @@ struct CreateConfirmView: View {
             }
             .padding(Theme.Space.gutter)
         }
-        .navigationTitle("New wallet")
+        .navigationTitle(Text("New wallet", bundle: .module, comment: "create wallet screen title"))
     }
 }

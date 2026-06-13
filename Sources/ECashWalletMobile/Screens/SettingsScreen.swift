@@ -18,11 +18,13 @@ struct SettingsScreen: View {
                 if let wallet = app.selectedWallet {
                     Button { showBackup = true } label: {
                         HStack {
-                            Text("Back up recovery phrase")
+                            Text("Back up recovery phrase", bundle: .module, comment: "settings security row")
                                 .textStyle(.body)
                                 .foregroundStyle(Theme.Colors.text0)
                             Spacer()
-                            Text(wallet.isBackedUp ? "Backed up" : "Not backed up")
+                            (wallet.isBackedUp
+                                ? Text("Backed up", bundle: .module, comment: "wallet backup status")
+                                : Text("Not backed up", bundle: .module, comment: "wallet backup status"))
                                 .textStyle(.xs)
                                 .foregroundStyle(wallet.isBackedUp ? Theme.Colors.positive : Theme.Colors.warning)
                         }
@@ -31,37 +33,59 @@ struct SettingsScreen: View {
                 Toggle("Require unlock", isOn: Binding(
                     get: { app.appLock.enabled },
                     set: { app.appLock.setEnabled($0) }))
-                Text("Ask for Face ID, fingerprint, or your passcode when opening the app.")
+                Text("Ask for Face ID, fingerprint, or your passcode when opening the app.",
+                     bundle: .module, comment: "require-unlock toggle explainer")
                     .textStyle(.xs)
                     .foregroundStyle(Theme.Colors.text2)
+                // Grace window before re-locking — so popping out to copy an address and coming
+                // right back doesn't re-prompt. Only relevant while the lock is armed.
+                if app.appLock.enabled {
+                    Picker("Auto-lock", selection: Binding(
+                        get: { app.appLock.graceSeconds },
+                        set: { app.appLock.setGraceSeconds($0) })) {
+                        Text("Immediately", bundle: .module, comment: "auto-lock: no grace period").tag(0)
+                        Text("After 10 seconds", bundle: .module, comment: "auto-lock grace option").tag(10)
+                        Text("After 30 seconds", bundle: .module, comment: "auto-lock grace option").tag(30)
+                        Text("After 1 minute", bundle: .module, comment: "auto-lock grace option").tag(60)
+                        Text("After 5 minutes", bundle: .module, comment: "auto-lock grace option").tag(300)
+                    }
+                }
             }
             Section("Appearance") {
                 Picker("Theme", selection: $appearance) {
-                    Text("System").tag("")
-                    Text("Light").tag("light")
-                    Text("Dark").tag("dark")
+                    Text("System", bundle: .module, comment: "appearance: follow system").tag("")
+                    Text("Light", bundle: .module, comment: "appearance: light mode").tag("light")
+                    Text("Dark", bundle: .module, comment: "appearance: dark mode").tag("dark")
                 }
             }
             Section("About") {
                 Text(versionString)
                     .textStyle(.sm)
                     .foregroundStyle(Theme.Colors.text1)
+                NavigationLink {
+                    LicensesScreen()
+                } label: {
+                    Text("Open-source licenses", bundle: .module, comment: "settings row → attributions")
+                        .textStyle(.body)
+                        .foregroundStyle(Theme.Colors.text0)
+                }
             }
             // Dev affordance — the iOS Keychain survives app deletion, so this is the reliable wipe
             // for repeated testing. Returns to the empty state. (Gate behind a debug flag later.)
             Section("Developer") {
                 Button { app.wipeAllWallets() } label: {
-                    Text("Reset all wallet data")
+                    Text("Reset all wallet data", bundle: .module, comment: "developer reset button")
                         .textStyle(.body)
                         .foregroundStyle(Theme.Colors.negative)
                 }
-                Text("Wipes every wallet from the Keychain + storage on this device.")
+                Text("Wipes every wallet from the Keychain + storage on this device.",
+                     bundle: .module, comment: "developer reset explainer")
                     .textStyle(.xs)
                     .foregroundStyle(Theme.Colors.text2)
             }
         }
         .groupedListStyle()
-        .navigationTitle("Settings")
+        .navigationTitle(Text("Settings", bundle: .module, comment: "settings screen title"))
         .fullScreenFlow(isPresented: $showBackup) {
             if let vm = app.makeBackupViewModel() {
                 BackupFlowView(viewModel: vm)

@@ -44,6 +44,48 @@ final class WalletErrorTests: XCTestCase {
         XCTAssertFalse(mapped.userMessage.contains("wpkh"))
     }
 
+    /// The Golden Rule §2 guarantee, property-style: a BDK error string can embed ANYTHING —
+    /// a signing failure that prints the offending descriptor, a Bip32 error quoting the xprv,
+    /// a Generic error that stringifies internal state including the mnemonic. No matter how the
+    /// raw text is shaped or which case it classifies as, `mapping()` must return a fixed,
+    /// pre-scrubbed message that contains NONE of the secret material. This holds structurally
+    /// because every case's `userMessage` is a constant and `.engine` is only ever built with a
+    /// fixed string — this test pins that invariant against regressions.
+    func testMappingNeverLeaksAcrossRealisticBDKErrorShapes() {
+        // Clearly fake, but structurally real secret material that must never survive.
+        let xprv = "xprv9s21ZrQH143K2LBWUUQRFXhucrQqBpykdGGBxe3MfWyz4hQuXKh2FAKEKEYMATERIAL"
+        let tprv = "tprv8ZgxMBicQKsPeFAKETPRVKEYMATERIALdonotleakthisever1234567890abcdef"
+        let tpub = "tpubDC8msFG4d1234FAKEXPUBACCOUNTKEYdonotleak"
+        let fingerprint = "73c5da0a"
+        let mnemonic = "abandon ability able about above absent absorb abstract absurd abuse access accident"
+        let descriptor = "wpkh([\(fingerprint)/84'/1'/0']\(tprv)/0/*)"
+
+        // Raw error strings shaped like the real BDK 2.3.1 / Miniscript / Bip32 descriptions
+        // that could plausibly embed the above.
+        let rawErrors = [
+            "SignerError(External): failed to sign input 0 of \(descriptor)",
+            "DescriptorError: invalid descriptor \(descriptor)",
+            "Bip32Error: secret key \(xprv) is invalid for this path",
+            "Generic(\"internal state: mnemonic=\(mnemonic) account=\(tpub)\")",
+            "Miniscript(BadDescriptor(\"\(descriptor)\"))",
+            "PsbtError: could not finalize wpkh(\(tprv))",
+            "unexpected failure deriving \(xprv) at 84'/1'/0'",
+        ]
+
+        let forbidden = [xprv, tprv, tpub, fingerprint, mnemonic, descriptor, "wpkh", "xprv", "tprv", "tpub"]
+
+        for raw in rawErrors {
+            let message = WalletError.mapping(rawDescription: raw).userMessage
+            let lowerMessage = message.lowercased()
+            XCTAssertFalse(message.isEmpty, "mapped message must never be empty for: \(raw)")
+            XCTAssertNotEqual(message, raw, "mapped message must never echo the raw error")
+            for secret in forbidden {
+                XCTAssertFalse(lowerMessage.contains(secret.lowercased()),
+                               "leaked '\(secret)' for raw error: \(raw)")
+            }
+        }
+    }
+
     func testAllUserMessagesNonEmptyAndContainNoKeyMarkers() {
         let cases: [WalletError] = [
             .notImplemented, .invalidMnemonic, .invalidDescriptor, .invalidAddress,

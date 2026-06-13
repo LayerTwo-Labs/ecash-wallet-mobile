@@ -40,7 +40,7 @@ public enum WalletError: Error, Equatable, Sendable {
         case .insufficientFunds: return "Not enough funds to cover this amount and fee."
         case .dustAmount: return "That amount is too small to send."
         case .noSpendableUtxos: return "There are no spendable coins in this wallet."
-        case .syncFailed: return "Couldn't sync with the network. Try again."
+        case .syncFailed: return "Couldn't reach the network. Check your connection and try again."
         case .broadcastFailed: return "Couldn't broadcast the transaction. Try again."
         case .signingFailed: return "Signing failed."
         case .persistenceFailed: return "Couldn't save wallet data."

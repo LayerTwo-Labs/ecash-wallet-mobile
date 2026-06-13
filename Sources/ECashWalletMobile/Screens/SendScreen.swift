@@ -27,7 +27,7 @@ struct SendScreen: View {
     var body: some View {
         NavigationStack(path: $path) {
             recipientStep
-                .navigationTitle("Send to")
+                .navigationTitle(Text("Send to", bundle: .module, comment: "send recipient step title"))
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         CloseToolbarButton { dismiss() }
@@ -37,8 +37,8 @@ struct SendScreen: View {
                     ZStack {
                         Theme.Colors.bg0.ignoresSafeArea()
                         switch route {
-                        case .amount: amountStep.navigationTitle("Amount")
-                        case .review: reviewDestination.navigationTitle("Review")
+                        case .amount: amountStep.navigationTitle(Text("Amount", bundle: .module, comment: "send amount step title"))
+                        case .review: reviewDestination.navigationTitle(Text("Review", bundle: .module, comment: "send review step title"))
                         }
                     }
                 }
@@ -60,7 +60,7 @@ struct SendScreen: View {
             VStack(spacing: Theme.Space.x4) {
                 NetworkBadge(name: vm.networkDisplayName, isMainnet: vm.isMainnet)
 
-                Text("Who are you paying?")
+                Text("Who are you paying?", bundle: .module, comment: "send recipient prompt")
                     .textStyle(.sm)
                     .foregroundStyle(Theme.Colors.text1)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -96,7 +96,7 @@ struct SendScreen: View {
         VStack(spacing: Theme.Space.x4) {
             NetworkBadge(name: vm.networkDisplayName, isMainnet: vm.isMainnet)
 
-            Text("To \(Self.shortAddress(vm.reviewAddress))")
+            Text("To \(Self.shortAddress(vm.reviewAddress))", bundle: .module, comment: "send amount recipient recap; %@ is a shortened address")
                 .font(.jbMono(13, .regular))
                 .foregroundStyle(Theme.Colors.text2)
 
@@ -110,7 +110,7 @@ struct SendScreen: View {
                     .textStyle(.overline)
                     .foregroundStyle(Theme.Colors.text2)
                 Button { vm.tapMax() } label: {
-                    Text("Max: \(vm.balance.formattedCoin())")
+                    Text("Max: \(vm.balance.formattedCoin())", bundle: .module, comment: "send max-amount button; %@ is the spendable balance")
                         .textStyle(.xs)
                         .foregroundStyle(Theme.Colors.accent)
                 }
@@ -158,7 +158,7 @@ struct SendScreen: View {
         case .broadcasting:
             VStack(spacing: Theme.Space.x4) {
                 ProgressView()
-                Text("Broadcasting…")
+                Text("Broadcasting…", bundle: .module, comment: "send broadcast in progress")
                     .textStyle(.sm)
                     .foregroundStyle(Theme.Colors.text1)
             }
@@ -188,7 +188,8 @@ struct SendScreen: View {
                 reviewRow(label: "To", value: vm.reviewAddress)
                 reviewRow(label: "Network", value: vm.networkDisplayName)
                 reviewRow(label: "Fee", value: "\(vm.tier.label) · \(vm.tier.feeRate.satPerVByte) sat/vB")
-                Text("The network fee is set by rate; the exact fee is deducted at send.")
+                Text("The network fee is set by rate; the exact fee is deducted at send.",
+                     bundle: .module, comment: "send review fee explainer")
                     .textStyle(.xs)
                     .foregroundStyle(Theme.Colors.text2)
             }
@@ -209,12 +210,12 @@ struct SendScreen: View {
         .padding(Theme.Space.gutter)
     }
 
-    private func reviewRow(label: String, value: String) -> some View {
+    private func reviewRow(label: LocalizedStringKey, value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(label)
+            Text(label, bundle: .module)
                 .textStyle(.overline)
                 .foregroundStyle(Theme.Colors.text2)
-            Text(value)
+            Text(verbatim: value)
                 .font(.jbMono(14, .regular))
                 .foregroundStyle(Theme.Colors.text0)
         }
@@ -228,10 +229,11 @@ struct SendScreen: View {
                 .resizable().scaledToFit()
                 .frame(width: 44, height: 44)
                 .foregroundStyle(Theme.Colors.positive)
-            Text("Sent")
+            Text("Sent", bundle: .module, comment: "send success heading")
                 .textStyle(.h2)
                 .foregroundStyle(Theme.Colors.text0)
-            Text("Your transaction is broadcast and pending confirmation.")
+            Text("Your transaction is broadcast and pending confirmation.",
+                 bundle: .module, comment: "send success note")
                 .textStyle(.sm)
                 .foregroundStyle(Theme.Colors.text1)
                 .multilineTextAlignment(.center)
