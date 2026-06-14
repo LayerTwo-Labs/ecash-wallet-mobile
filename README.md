@@ -158,6 +158,7 @@ non-negotiable rules are CLAUDE.md §2 (Golden Rules) and §7 (Security model).
 - `docs/key-derivation.md` — key-derivation decision record (BIP84, coin-types, eCash params).
 - `docs/key-storage.md` — key-storage / secrets decision record (what's persisted, Keychain/Keystore, backup, app-lock).
 - `docs/accounts-and-labels.md` — design record for multi-account-per-seed (savings/checking) + per-key-pair labels/metadata (post-v1; app-owned, not BDK).
+- `docs/ios-device-signing.md` — runbook for installing on a real iPhone (Xcode signing) + the Android `adb` install path.
 
 ## Open source & acknowledgements
 
