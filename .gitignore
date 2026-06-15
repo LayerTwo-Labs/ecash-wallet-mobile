@@ -14,6 +14,9 @@ local.properties
 .kotlin/
 Android/app/keystore.jks
 Android/app/keystore.properties
+Android/app/*.jks
+# App Store Connect API keys (.p8) — never commit; the key is also embedded in the gitignored apikey.json
+*.p8
 
 xcodebuild*.log
 

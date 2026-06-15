@@ -197,6 +197,9 @@ non-negotiable rules are CLAUDE.md §2 (Golden Rules) and §7 (Security model).
 - `docs/ios-device-signing.md` — runbook for installing on a real iPhone (Xcode signing) + the Android `adb` install path.
 - `docs/plausible-deniability.md` — design record (proposed) for BIP39-passphrase hidden wallets.
 - `docs/backends-and-endpoints.md` — how chain data is fetched + the custom-endpoint plan (Electrum/Esplora v1, CBF v2).
+- `docs/release.md` — build/sign/ship to App Store + Google Play via fastlane (iOS connected; Android Play setup checklist).
+- `docs/network-switching.md` — design record (planned) for switching a wallet's network in-app (storage groundwork done).
+- `docs/coinnews-integration.md` — design record (planned) for fetching + publishing CoinNews (on-chain `OP_RETURN` bulletin board).
 
 ## Open source & acknowledgements
 

@@ -19,8 +19,19 @@ lane :assemble do |options|
   )
 end
 
+lane :beta do |options|
+  desc "Build and upload to TestFlight (no App Store review submission)"
+  get_provisioning_profile(api_key_path: "fastlane/apikey.json")
+  assemble
+  upload_to_testflight(
+    api_key_path: "fastlane/apikey.json",
+    # Don't block the lane on Apple's server-side processing; check TestFlight when it's ready.
+    skip_waiting_for_build_processing: true
+  )
+end
+
 lane :release do |options|
-  desc "Build and release app"
+  desc "Build and release app (submits for App Store review — use :beta for TestFlight first)"
 
   # see https://docs.fastlane.tools/uploading-app-privacy-details/
   #upload_app_privacy_details_to_app_store(json_path: "fastlane/app_privacy_details.json")

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive-icon background color. Matches the dark icon art so the launcher no longer wraps the
+     legacy PNG in a white rounded rect. -->
+<resources>
+    <color name="ic_launcher_background">#0A0A0C</color>
+</resources>

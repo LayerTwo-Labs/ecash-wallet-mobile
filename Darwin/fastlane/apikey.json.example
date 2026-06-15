@@ -1,0 +1,8 @@
+{
+  "_comment": "App Store Connect API key for fastlane. COPY this to apikey.json (gitignored) and fill in real values. Get them from App Store Connect → Users and Access → Integrations → App Store Connect API: generate a Team Key (role: App Manager), download the .p8 ONCE, and note the Key ID + Issuer ID shown on that page.",
+  "key_id": "YOUR_KEY_ID",
+  "issuer_id": "00000000-0000-0000-0000-000000000000",
+  "key": "-----BEGIN PRIVATE KEY-----\nLINE1\nLINE2\n...\n-----END PRIVATE KEY-----",
+  "duration": 1200,
+  "in_house": false
+}

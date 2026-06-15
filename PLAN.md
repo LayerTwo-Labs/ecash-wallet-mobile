@@ -382,8 +382,13 @@ it; only "New address" advances the reveal index).
 - [ ] **Open-source license texts** — bundle the full license/notice text for each dependency
       (MIT/Apache-2.0/OFL-1.1 require it); extend `OpenSourceLicense` with a notice + a detail
       screen. The attributions list itself already ships (Settings → Open-source licenses).
-- [ ] **Release** — signing (iOS + Android), ProGuard, app icons (`skip icon`), Skip.env
-      metadata, CI (skip-deployment). Performance checks on a **Release** build on-device.
+- 🟡 **Release** — **iOS fastlane CONNECTED (2026-06-15):** App Store Connect API key in place
+      (`Darwin/fastlane/apikey.json`, gitignored), auth + app record verified; `beta` (TestFlight) +
+      `release` (App Store) lanes; signing via gitignored `DeveloperSettings.xcconfig`. **Android Play
+      not set up yet** (needs Play Console app + service-account JSON + upload keystore — see
+      `docs/release.md §2`). Remaining: build-number bumping, store metadata/screenshots, CI
+      (skip-deployment), ProGuard tuning. Full runbook: `docs/release.md`. Performance checks on a
+      **Release** build on-device.
 
 ---
 

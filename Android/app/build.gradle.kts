@@ -38,6 +38,14 @@ android {
         // applicationId = ANDROID_APPLICATION_ID ?? PRODUCT_BUNDLE_IDENTIFIER
         // versionCode = CURRENT_PROJECT_VERSION
         // versionName = MARKETING_VERSION
+
+        // arm64-v8a only — every modern phone + our arm64 emulator. Keeps the APK from carrying the
+        // Swift runtime + BDK for 7 ABIs (~300 MB → far smaller). Re-add armeabi-v7a here if we ever
+        // need 32-bit/older-device reach for a Play release.
+        ndk {
+            abiFilters.clear()
+            abiFilters.add("arm64-v8a")
+        }
     }
 
     buildFeatures {

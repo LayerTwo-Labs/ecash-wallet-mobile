@@ -1,5 +1,9 @@
 // Additional properties included by the Fastfile build_app
 
+// Pull in the local, gitignored signing team (DEVELOPMENT_TEAM) so fastlane release builds sign
+// without the team ever being committed. See Darwin/DeveloperSettings.xcconfig(.example).
+#include? "../DeveloperSettings.xcconfig"
+
 // This file can be used to override various properties from Skip.env
 //PRODUCT_BUNDLE_IDENTIFIER =
 //DEVELOPMENT_TEAM =

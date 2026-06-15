@@ -416,6 +416,7 @@ UI-level flows come later via **`skip-ui-automation`** (`skip app launch` + Maes
 - **BIP300/301 deposits & withdrawals** — the actual eCash differentiator. Plan to implement deposit/withdrawal transaction construction **once in Rust** (extend `bdk-ffi` or a sibling crate) and regenerate Swift + Kotlin bindings together, so the consensus-sensitive code isn't duplicated. Confirm the exact deposit/withdrawal tx format against L2L's sidechain spec before designing the UI.
 - Multisig (BDK supports it via descriptors), watch-only, PSBT import/export, sidechain selector UI, address labeling/coin control, fiat rates.
 - **Plausible deniability** — BIP39-passphrase hidden wallets (proposed; BDK's `DescriptorSecretKey(…password:)` already supports it). Design + threat model + invariant in `docs/plausible-deniability.md`.
+- **CoinNews** — fetch + publish the on-chain (`OP_RETURN`) bulletin board (L2L). Publishing reuses the BDK tx path (+ a Schnorr identity key + `OP_RETURN` output); reading needs a CoinNews indexer endpoint (BDK backends don't index `OP_RETURN`). Design + phased plan + unknowns in `docs/coinnews-integration.md`.
 
 ---
 
