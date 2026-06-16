@@ -30,12 +30,22 @@ import WalletService
         CoinNewsTopic(topicHex: hex, name: "Topic \(hex)", retentionDays: 0)
     }
 
+    /// A cleared, isolated pending store (host-only test domain) so optimistic content from one test
+    /// doesn't bleed into another.
+    private func freshPendingStore() -> PendingCoinNewsStore {
+        let suite = "test.pending.coinnews"
+        let d = UserDefaults(suiteName: suite)!
+        d.removePersistentDomain(forName: suite)
+        return PendingCoinNewsStore(defaults: d)
+    }
+
     private func loadedFeed() async -> CoinNewsViewModel {
         let vm = CoinNewsViewModel(
             network: .signet,
             fetcher: FakeFetcher(
                 topicsList: [topic("aaaa"), topic("bbbb")],
-                items: [item("1", "aaaa"), item("2", "bbbb"), item("3", "aaaa")]))
+                items: [item("1", "aaaa"), item("2", "bbbb"), item("3", "aaaa")]),
+            pending: freshPendingStore())
         await vm.load()
         return vm
     }
@@ -59,14 +69,15 @@ import WalletService
         #expect(vm.activeTopicName == nil)
     }
 
-    @Test func addLocalTopicIsOptimisticAndIdempotent() async {
+    @Test func addPendingTopicIsOptimisticAndIdempotent() async {
         let vm = await loadedFeed()
         let before = vm.topics.count
-        vm.addLocalTopic(CoinNewsTopic(topicHex: "cccc", name: "Fresh", retentionDays: 5))
+        vm.addPendingTopic(CoinNewsTopic(topicHex: "cccc", name: "Fresh", retentionDays: 5))
         #expect(vm.topics.count == before + 1)
         #expect(vm.topicName(for: "cccc") == "Fresh")
+        #expect(vm.pendingTopicHexes.contains("cccc"))
         // Re-adding the same id is a no-op (won't duplicate when the indexer also returns it).
-        vm.addLocalTopic(CoinNewsTopic(topicHex: "cccc", name: "Dup", retentionDays: 9))
+        vm.addPendingTopic(CoinNewsTopic(topicHex: "cccc", name: "Dup", retentionDays: 9))
         #expect(vm.topics.count == before + 1)
     }
 
@@ -123,15 +134,55 @@ import WalletService
         #expect(CoinNewsAvailability.isAvailable(on: .regtest))
     }
 
-    // MARK: - Seeded client is network-scoped
+    // MARK: - Per-network endpoint + empty fallback
 
-    @Test func seededClientServesOnlyItsNetwork() async throws {
-        let signet = SeededCoinNewsClient(network: .signet)
-        #expect(try await signet.topics().count == 2)
-        #expect(try await !signet.frontPage(limit: 50).isEmpty)
+    @Test func publicEndpointRegistryIsPerNetwork() {
+        #expect(CoinNewsEndpointRegistry.publicEndpoint(for: .signet) != nil)   // hosted indexer
+        #expect(CoinNewsEndpointRegistry.publicEndpoint(for: .bitcoin) == nil)  // none yet
+        #expect(CoinNewsEndpointRegistry.publicEndpoint(for: .testnet4) == nil)
+    }
 
-        let mainnet = SeededCoinNewsClient(network: .bitcoin)
-        #expect(try await mainnet.topics().isEmpty)
-        #expect(try await mainnet.frontPage(limit: 50).isEmpty)
+    @Test func emptyClientReturnsNothing() async throws {
+        let c = EmptyCoinNewsClient()
+        #expect(try await c.topics().isEmpty)
+        #expect(try await c.frontPage(limit: 50).isEmpty)
+        #expect(try await c.newFeed(limit: 50).isEmpty)
+    }
+
+    // MARK: - Pending (optimistic) store
+
+    private func pendingStore(ttl: Int64 = 24 * 60 * 60) -> PendingCoinNewsStore {
+        let suite = "test.pending.coinnews.store"
+        let d = UserDefaults(suiteName: suite)!
+        d.removePersistentDomain(forName: suite)
+        return PendingCoinNewsStore(defaults: d, ttlSeconds: ttl)
+    }
+
+    @Test func pendingStoreReconcilesByContentAndHex() {
+        let store = pendingStore()
+        store.addItem(CoinNewsItem(id: "pending:tx1", topicHex: "aaaa", headline: "Hello", body: "world"), on: .signet)
+        store.addTopic(CoinNewsTopic(topicHex: "a5a9412e", name: "Nostr Stuff", retentionDays: 7), on: .signet)
+        #expect(store.items(on: .signet).count == 1)
+        #expect(store.topics(on: .signet).count == 1)
+
+        // Indexer returns the same story (different id) + the topic → both reconciled away.
+        store.reconcileItems(fetched: [CoinNewsItem(id: "abc", topicHex: "aaaa", headline: "Hello", body: "world")], on: .signet)
+        store.reconcileTopics(fetchedHexes: ["a5a9412e"], on: .signet)
+        #expect(store.items(on: .signet).isEmpty)
+        #expect(store.topics(on: .signet).isEmpty)
+    }
+
+    @Test func pendingStoreExpiresViaTTL() {
+        let store = pendingStore(ttl: -1)   // already past expiry
+        store.addItem(CoinNewsItem(id: "pending:tx2", topicHex: "aaaa", headline: "Stale"), on: .signet)
+        store.reconcileItems(fetched: [], on: .signet)   // no content match, but TTL drops it
+        #expect(store.items(on: .signet).isEmpty)
+    }
+
+    @Test func pendingStoreIsPerNetwork() {
+        let store = pendingStore()
+        store.addTopic(CoinNewsTopic(topicHex: "dddd", name: "Sig", retentionDays: 0), on: .signet)
+        #expect(store.topics(on: .signet).count == 1)
+        #expect(store.topics(on: .testnet4).isEmpty)   // isolated per network
     }
 }

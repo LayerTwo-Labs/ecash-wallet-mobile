@@ -8,7 +8,7 @@ import Foundation
 /// shape. Both the BitWindow `misc.v1` API and the standalone `coinnews.v1` indexer map INTO this;
 /// fields a given backend doesn't provide are `nil` (e.g. `misc.v1` has `feeSats` but no ranking;
 /// `coinnews.v1` has `score`/`points`/`commentCount` but no fee). See `CoinNewsFetching`.
-struct CoinNewsItem: Identifiable, Hashable, Sendable {
+struct CoinNewsItem: Identifiable, Hashable, Sendable, Codable {
     /// ItemID (coinnews.v1, hex) or row id (misc.v1). Stable within one backend.
     let id: String
     /// Canonical 4-byte topic id, hex (e.g. "a1a1a1a1").
@@ -50,7 +50,7 @@ struct CoinNewsItem: Identifiable, Hashable, Sendable {
 
 /// A CoinNews topic (board), e.g. "US Weekly". Topic IDs are canonical (4-byte, hex); `name` is
 /// display-only metadata.
-struct CoinNewsTopic: Identifiable, Hashable, Sendable {
+struct CoinNewsTopic: Identifiable, Hashable, Sendable, Codable {
     let topicHex: String
     let name: String
     let retentionDays: Int

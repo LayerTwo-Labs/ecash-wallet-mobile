@@ -49,12 +49,21 @@ final class CoinNewsViewModel {
     /// by `AppState`/`TopicsViewModel` so the `.followed` filter can be applied locally.
     var followed: Set<String> = []
 
-    private let fetcher: CoinNewsFetching
+    /// IDs/hexes of items/topics shown optimistically (published locally, not yet indexed) — drives
+    /// the "Broadcasting…" badge.
+    private(set) var pendingItemIds: Set<String> = []
+    private(set) var pendingTopicHexes: Set<String> = []
 
-    init(network: WalletNetwork, fetcher: CoinNewsFetching) {
+    private let fetcher: CoinNewsFetching
+    private let pending: PendingCoinNewsStore
+
+    init(network: WalletNetwork, fetcher: CoinNewsFetching, pending: PendingCoinNewsStore) {
         self.network = network
         self.fetcher = fetcher
+        self.pending = pending
     }
+
+    func isPending(itemID: String) -> Bool { pendingItemIds.contains(itemID) }
 
     /// The items the feed should actually show, after applying `feedFilter`.
     var visibleItems: [CoinNewsItem] {
@@ -75,9 +84,19 @@ final class CoinNewsViewModel {
     /// Topic display name for an item's `topicHex`, if known.
     func topicName(for topicHex: String) -> String? { topicNames[topicHex] }
 
-    /// Optimistically surface a just-created topic before the indexer picks it up (the on-chain
-    /// creation won't be queryable until it's mined + indexed). No-op if already known.
-    func addLocalTopic(_ topic: CoinNewsTopic) {
+    /// Optimistically surface a just-published **story** before the indexer picks it up. Persisted
+    /// (survives refresh/restart) and reconciled away once the indexer returns it.
+    func addPendingStory(_ item: CoinNewsItem) {
+        pending.addItem(item, on: network)
+        if !items.contains(where: { $0.id == item.id }) { items.insert(item, at: 0) }
+        pendingItemIds.insert(item.id)
+    }
+
+    /// Optimistically surface a just-created **topic** (you usually create one to post to it, so it
+    /// must stay selectable until indexed). Persisted + reconciled by `topicHex`.
+    func addPendingTopic(_ topic: CoinNewsTopic) {
+        pending.addTopic(topic, on: network)
+        pendingTopicHexes.insert(topic.topicHex)
         guard !topics.contains(where: { $0.topicHex == topic.topicHex }) else { return }
         topics.append(topic)
         topicNames[topic.topicHex] = topic.name
@@ -96,12 +115,29 @@ final class CoinNewsViewModel {
         state = .loading
         do {
             let fetchedTopics = try await fetcher.topics()
-            topics = fetchedTopics
+            let fetchedItems = try await fetcher.frontPage(limit: 50)
+
+            // Reconcile optimistic copies against what the indexer now returns (drops confirmed +
+            // TTL-expired), then merge the survivors on top so just-published content stays visible.
+            pending.reconcileItems(fetched: fetchedItems, on: network)
+            pending.reconcileTopics(fetchedHexes: Set(fetchedTopics.map { $0.topicHex }), on: network)
+            let pendingItems = pending.items(on: network)
+            let pendingTopics = pending.topics(on: network)
+
+            items = pendingItems + fetchedItems
+            pendingItemIds = Set(pendingItems.map { $0.id })
+
+            var mergedTopics = pendingTopics
+            for topic in fetchedTopics where !mergedTopics.contains(where: { $0.topicHex == topic.topicHex }) {
+                mergedTopics.append(topic)
+            }
+            topics = mergedTopics
+            pendingTopicHexes = Set(pendingTopics.map { $0.topicHex })
+
             var names: [String: String] = [:]
-            for topic in fetchedTopics { names[topic.topicHex] = topic.name }
+            for topic in mergedTopics { names[topic.topicHex] = topic.name }
             topicNames = names
 
-            items = try await fetcher.frontPage(limit: 50)
             state = .loaded
         } catch let error as CoinNewsError {
             state = .failed(Self.message(for: error))

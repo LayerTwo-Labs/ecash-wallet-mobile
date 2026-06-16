@@ -23,13 +23,17 @@ if [ -z "${SIM_ID:-}" ]; then
 fi
 echo "▸ Simulator: $SIM_ID   Config: $CONFIG"
 
-# CoinNews dev endpoint → forwarded into the launched app's environment.
-COOKIE="$HOME/Library/Application Support/bitwindow/.auth.cookie"
-if [ -f "$COOKIE" ]; then
-  export SIMCTL_CHILD_COINNEWS_DEV_ENDPOINT="${COINNEWS_DEV_ENDPOINT:-http://127.0.0.1:30301}"
-  export SIMCTL_CHILD_COINNEWS_DEV_TOKEN="$(tr -d '\r\n' < "$COOKIE")"
+# CoinNews source: by default the app uses the public coinnews.v1 indexer (CoinNewsEndpointRegistry).
+# To test against a LOCAL BitWindow instead, opt in: COINNEWS_DEV_ENDPOINT=http://127.0.0.1:30301
+# scripts/run-ios-sim.sh — its .auth.cookie is forwarded automatically.
+if [ -n "${COINNEWS_DEV_ENDPOINT:-}" ]; then
+  export SIMCTL_CHILD_COINNEWS_DEV_ENDPOINT="$COINNEWS_DEV_ENDPOINT"
   export SIMCTL_CHILD_COINNEWS_DEV_NETWORK="${COINNEWS_DEV_NETWORK:-signet}"
-  echo "▸ CoinNews dev endpoint: $SIMCTL_CHILD_COINNEWS_DEV_ENDPOINT (network $SIMCTL_CHILD_COINNEWS_DEV_NETWORK)"
+  COOKIE="$HOME/Library/Application Support/bitwindow/.auth.cookie"
+  [ -f "$COOKIE" ] && export SIMCTL_CHILD_COINNEWS_DEV_TOKEN="$(tr -d '\r\n' < "$COOKIE")"
+  echo "▸ CoinNews DEV override: $SIMCTL_CHILD_COINNEWS_DEV_ENDPOINT (network $SIMCTL_CHILD_COINNEWS_DEV_NETWORK)"
+else
+  echo "▸ CoinNews: public indexer (set COINNEWS_DEV_ENDPOINT to use a local BitWindow)"
 fi
 
 echo "▸ Building (Android leg disabled via SKIP_ACTION=none)…"

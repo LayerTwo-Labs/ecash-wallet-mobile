@@ -73,7 +73,8 @@ final class PostStoryViewModel {
     var effectiveFeeRate: FeeRate { FeeRate(satPerVByte: effectiveSatPerVByte) }
 
     private let publish: (_ payloadHex: String, _ feeRate: FeeRate) async throws -> WalletTx
-    private let onPublished: @MainActor (WalletTx) -> Void
+    /// Hands back an optimistic `CoinNewsItem` (for the feed) + the tx (for Activity).
+    private let onPublished: @MainActor (CoinNewsItem, WalletTx) -> Void
     private let fiatString: (Int64) -> String?
     /// Device-auth gate before broadcasting (Golden Rule §7) — publishing spends coins, like Send.
     /// AppState wires this to `DeviceAuth` when app-lock is on, or a pass-through when it's off.
@@ -83,7 +84,7 @@ final class PostStoryViewModel {
          unitLabel: String,
          availableTopics: [CoinNewsTopic] = [],
          publish: @escaping (_ payloadHex: String, _ feeRate: FeeRate) async throws -> WalletTx,
-         onPublished: @escaping @MainActor (WalletTx) -> Void,
+         onPublished: @escaping @MainActor (CoinNewsItem, WalletTx) -> Void,
          fiatString: @escaping (Int64) -> String? = { _ in nil },
          authorize: @escaping (String) async -> Bool = { _ in true }) {
         self.network = network
@@ -157,7 +158,17 @@ final class PostStoryViewModel {
         step = .publishing
         do {
             let tx = try await publish(Self.hex(payload), effectiveFeeRate)
-            onPublished(tx)
+            // Optimistic feed copy: keyed by txid (local id), reconciled by content once indexed.
+            // No createdAtRaw — the "Broadcasting…" badge conveys it's in flight.
+            let trimmedURL = url.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
+            let item = CoinNewsItem(
+                id: "pending:\(tx.txid)",
+                topicHex: topicHex,
+                headline: trimmedHeadline,
+                body: trimmedBody.isEmpty ? nil : trimmedBody,
+                url: trimmedURL.isEmpty ? nil : trimmedURL)
+            onPublished(item, tx)
             step = .published
         } catch let error as WalletError {
             step = .failed(error.userMessage)

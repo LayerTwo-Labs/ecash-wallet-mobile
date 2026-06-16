@@ -10,6 +10,8 @@ import SwiftUI
 struct NewsRow: View {
     let item: CoinNewsItem
     let topicName: String?
+    /// Published locally but not yet indexed — shows a "Broadcasting…" badge.
+    var isPending: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Space.x2) {
@@ -32,6 +34,11 @@ struct NewsRow: View {
                     Text(verbatim: topicName)
                         .textStyle(.overline)
                         .foregroundStyle(Theme.Colors.accent)
+                }
+                if isPending {
+                    Text("Broadcasting…", bundle: .module, comment: "story not yet indexed")
+                        .textStyle(.xs)
+                        .foregroundStyle(Theme.Colors.warning)
                 }
                 if let date = item.createdAtRaw, date.count >= 10 {
                     Text(verbatim: String(date.prefix(10)))   // YYYY-MM-DD (no DateFormatter on Android)

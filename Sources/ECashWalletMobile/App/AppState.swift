@@ -53,6 +53,10 @@ final class AppState {
     /// per network, so this is keyed by network too).
     let topicSubscriptions = TopicSubscriptionStore()
 
+    /// Optimistic, persisted "just-published" CoinNews (stories + topics) so they appear in the feed
+    /// before the indexer catches up (~10 min to mine + index). Per network; shared across feeds.
+    let pendingCoinNews = PendingCoinNewsStore()
+
     /// News tab feed for the **selected wallet's network**. CoinNews is on-chain per network, so the
     /// feed, topics, and follow set all differ by network; we cache one `CoinNewsViewModel` per
     /// network (`coinNewsByNetwork`) and re-point `coinNews` on every wallet/network switch. Each is
@@ -64,7 +68,7 @@ final class AppState {
     /// The selected wallet's CoinNews feed (cached per network). `nil` only with no wallet.
     private func feed(for network: WalletNetwork) -> CoinNewsViewModel {
         if let existing = coinNewsByNetwork[network] { return existing }
-        let vm = Self.makeCoinNewsFeed(for: network)
+        let vm = Self.makeCoinNewsFeed(for: network, pending: pendingCoinNews)
         vm.followed = topicSubscriptions.followed(on: network)
         coinNewsByNetwork[network] = vm
         return vm
@@ -79,22 +83,30 @@ final class AppState {
         coinNews = feed(for: network)
     }
 
-    /// Builds the per-network feed. Defaults to the seeded source (no networking plumbing); a DEV
-    /// override pulls from a live indexer when `COINNEWS_DEV_ENDPOINT` is set (e.g. BitWindow on the
-    /// iOS Simulator: `COINNEWS_DEV_ENDPOINT=http://127.0.0.1:30301` + `COINNEWS_DEV_TOKEN=<cookie>`).
-    /// The dev BitWindow node serves exactly ONE network — `COINNEWS_DEV_NETWORK` (default `signet`)
-    /// — so only that network's feed uses it; others fall back to the (network-scoped) seed. The
-    /// public `coinnews.v1` endpoint will replace the dev override per network.
-    private static func makeCoinNewsFeed(for network: WalletNetwork) -> CoinNewsViewModel {
+    /// Builds the per-network feed.
+    ///   1. **Production:** the public `coinnews.v1` indexer for the network (`CoinNewsEndpointRegistry`,
+    ///      signet today) via `CoinNewsV1Client` — the real source of stories/topics.
+    ///   2. **Dev override (opt-in):** if `COINNEWS_DEV_ENDPOINT` is set, point that ONE network
+    ///      (`COINNEWS_DEV_NETWORK`, default `signet`) at a local BitWindow `misc.v1` instead
+    ///      (`COINNEWS_DEV_TOKEN` = its `.auth.cookie`). Takes precedence so you can test a local node.
+    ///   3. **No indexer for the network:** empty feed (no hardcoded/seeded content).
+    private static func makeCoinNewsFeed(for network: WalletNetwork, pending: PendingCoinNewsStore) -> CoinNewsViewModel {
+        CoinNewsViewModel(network: network, fetcher: makeCoinNewsFetcher(for: network), pending: pending)
+    }
+
+    private static func makeCoinNewsFetcher(for network: WalletNetwork) -> CoinNewsFetching {
         let env = ProcessInfo.processInfo.environment
-        if let endpoint = env["COINNEWS_DEV_ENDPOINT"], let url = URL(string: endpoint) {
-            let devNetwork = WalletNetwork(rawValue: env["COINNEWS_DEV_NETWORK"] ?? "") ?? .signet
-            if network == devNetwork {
-                let ep = CoinNewsEndpoint(baseURL: url, bearerToken: env["COINNEWS_DEV_TOKEN"])
-                return CoinNewsViewModel(network: network, fetcher: BitWindowCoinNewsClient(endpoint: ep))
-            }
+        // Dev: local BitWindow (misc.v1, auth cookie) for the one network it serves.
+        if let endpoint = env["COINNEWS_DEV_ENDPOINT"], let url = URL(string: endpoint),
+           network == (WalletNetwork(rawValue: env["COINNEWS_DEV_NETWORK"] ?? "") ?? .signet) {
+            return BitWindowCoinNewsClient(endpoint: CoinNewsEndpoint(baseURL: url, bearerToken: env["COINNEWS_DEV_TOKEN"]))
         }
-        return CoinNewsViewModel(network: network, fetcher: SeededCoinNewsClient(network: network))
+        // Production: the public coinnews.v1 indexer for this network.
+        if let endpoint = CoinNewsEndpointRegistry.publicEndpoint(for: network) {
+            return CoinNewsV1Client(endpoint: endpoint)
+        }
+        // No indexer hosted for this network yet.
+        return EmptyCoinNewsClient()
     }
 
     enum SyncState: Equatable {
@@ -120,7 +132,7 @@ final class AppState {
         // below, once every stored property exists.
         let selectedId = manager.selectedWalletId
         let initialNetwork = manager.wallets.first { $0.id == selectedId }?.network ?? .signet
-        let initialFeed = Self.makeCoinNewsFeed(for: initialNetwork)
+        let initialFeed = Self.makeCoinNewsFeed(for: initialNetwork, pending: pendingCoinNews)
         initialFeed.followed = topicSubscriptions.followed(on: initialNetwork)
         coinNews = initialFeed
         // App-lock: default ON. Lock at launch only when armed AND there's a wallet to protect
@@ -260,7 +272,10 @@ final class AppState {
             publish: { payloadHex, feeRate in
                 try await self.manager.publishOpReturn(walletId: id, payloadHex: payloadHex, feeRate: feeRate)
             },
-            onPublished: { tx in self.insertPending(tx) },
+            onPublished: { item, tx in
+                self.insertPending(tx)                 // pending tx → Activity
+                self.coinNews.addPendingStory(item)    // optimistic story → News feed until indexed
+            },
             fiatString: { sats in self.fiatString(forSats: sats) },
             authorize: { reason in
                 // Require device auth before publishing when app-lock is on (§7); pass through if off.
@@ -283,7 +298,7 @@ final class AppState {
             },
             onCreated: { topic, tx in
                 self.insertPending(tx)
-                self.coinNews.addLocalTopic(topic)   // surface it before the indexer catches up
+                self.coinNews.addPendingTopic(topic)   // persisted optimistic topic until indexed
                 onCreated(topic)
             },
             fiatString: { sats in self.fiatString(forSats: sats) },

@@ -125,4 +125,19 @@ import Testing
         print("CoinNews LIVE: \(topics.count) topics, \(feed.count) items — first: \(feed.first?.headline ?? "(none)")")
         #expect(!feed.isEmpty)
     }
+
+    /// LIVE (opt-in): the public `coinnews.v1` signet indexer. Run with
+    /// `COINNEWS_V1_LIVE=1 swift test --filter liveCoinNewsV1Feed`. No auth. No-op when not opted-in.
+    @Test func liveCoinNewsV1Feed() async throws {
+        guard ProcessInfo.processInfo.environment["COINNEWS_V1_LIVE"] == "1" else { return }
+
+        let endpoint = CoinNewsEndpoint(baseURL: URL(string: "https://signet.dc.galaxoidlabs.com")!)
+        let client = CoinNewsV1Client(endpoint: endpoint)
+
+        let topics = try await client.topics()
+        let feed = try await client.frontPage(limit: 50)
+        print("coinnews.v1 LIVE: \(topics.count) topics, \(feed.count) items — first: \(feed.first?.headline ?? "(none)")")
+        #expect(!feed.isEmpty)        // signet has seeded stories
+        #expect(feed.allSatisfy { !$0.id.isEmpty && !$0.headline.isEmpty })
+    }
 }

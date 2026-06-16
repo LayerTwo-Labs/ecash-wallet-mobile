@@ -10,6 +10,7 @@ import SwiftUI
 /// layout (same rule as `ActivityScreen`).
 struct NewsScreen: View {
     @Environment(AppState.self) var app
+    @Environment(\.openURL) var openURL   // not `private` — Fuse bridges view properties
     @State var showCompose = false   // not `private` — Fuse bridges @State
     @State var showTopics = false
 
@@ -115,6 +116,22 @@ struct NewsScreen: View {
         }
     }
 
+    /// A feed row. If the story has a URL, the whole row opens it in the system browser (SkipUI maps
+    /// `openURL` to a browser intent on Android); otherwise it's a plain, non-tappable row (any
+    /// in-body Markdown links still work). No `.buttonStyle(.plain)` → the List cell owns the tap.
+    @ViewBuilder private func storyRow(_ item: CoinNewsItem, _ vm: CoinNewsViewModel) -> some View {
+        let row = NewsRow(item: item,
+                          topicName: vm.topicName(for: item.topicHex),
+                          isPending: vm.isPending(itemID: item.id))
+        if let urlString = item.url, !urlString.isEmpty, let url = URL(string: urlString) {
+            Button { openURL(url) } label: {
+                row.frame(maxWidth: .infinity, alignment: .leading)
+            }
+        } else {
+            row
+        }
+    }
+
     @ViewBuilder private func feedList(_ vm: CoinNewsViewModel) -> some View {
         if vm.visibleItems.isEmpty {
             // ScrollView (not a bare VStack) so pull-to-refresh still works with an empty feed.
@@ -144,7 +161,7 @@ struct NewsScreen: View {
                         #endif
                 }
                 ForEach(vm.visibleItems) { item in
-                    NewsRow(item: item, topicName: vm.topicName(for: item.topicHex))
+                    storyRow(item, vm)
                 }
             }
             .listStyle(.plain)

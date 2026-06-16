@@ -39,6 +39,12 @@ for S in $SERIALS; do
     "$ADB" -s "$S" install "$APK" | tail -1
   fi
   "$ADB" -s "$S" shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 || true
-  if "$ADB" -s "$S" shell pidof "$PKG" >/dev/null 2>&1; then echo "  ✓ running"; else echo "  ✗ launch failed"; fi
+  # Launch is async — poll briefly before deciding (a single immediate pidof races and false-negatives).
+  ok=""
+  for _ in 1 2 3 4 5 6; do
+    if "$ADB" -s "$S" shell pidof "$PKG" >/dev/null 2>&1; then ok=1; break; fi
+    sleep 1
+  done
+  [ -n "$ok" ] && echo "  ✓ running" || echo "  ✗ launch failed"
 done
 echo "✓ Done."
