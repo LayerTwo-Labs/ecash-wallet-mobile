@@ -18,6 +18,31 @@ extension View {
         #endif
     }
 
+    /// Force a grouped `List` onto the app's base background (`bg0`) instead of the system grouped
+    /// color. Inside a sheet the system palette shifts one level lighter ("grey list in a sheet"),
+    /// so a grouped list in a sheet won't match the same list at a tab root (Settings). iOS-only;
+    /// Android/Compose renders its own surface. Pair with `.listRowBackground(Theme.Colors.bg2)`.
+    @ViewBuilder
+    func themedGroupedListBackground() -> some View {
+        #if os(iOS)
+        self.scrollContentBackground(.hidden).background(Theme.Colors.bg0)
+        #else
+        self
+        #endif
+    }
+
+    /// Inline (centered, non-large) navigation title on iOS — the right style for sheets, and it
+    /// reliably picks up the brand inline-title appearance. No-op on Android (its sheet top app bar
+    /// is already inline) and on the macOS host (where `navigationBarTitleDisplayMode` doesn't exist).
+    @ViewBuilder
+    func inlineNavigationTitle() -> some View {
+        #if os(iOS)
+        self.navigationBarTitleDisplayMode(.inline)
+        #else
+        self
+        #endif
+    }
+
     /// Large control size on iOS; native default sizing on Android/macOS.
     @ViewBuilder
     func largeControlSize() -> some View {
@@ -72,6 +97,23 @@ extension View {
         self.padding(Theme.Space.x3)
         #else
         self.padding(.horizontal, Theme.Space.x3)
+        #endif
+    }
+
+    /// Inset for a tappable "menu box" — a `Menu` whose label is styled to look like a text field
+    /// (Topic / Fee pickers). iOS pads all sides like a field. On Android `fieldBoxInset()` pads
+    /// horizontally only (a real `TextField` brings its own ~56dp Material height), but a `Menu`
+    /// label has NO intrinsic height, so it hugs its text and looks half as tall as the adjacent
+    /// fields — here we add the field-matching min-height back.
+    @ViewBuilder
+    func menuFieldBox() -> some View {
+        // Enforce a field-matching min-height on BOTH platforms (horizontal padding only): a `Menu`
+        // HStack and a `Picker(.menu)` control have different intrinsic heights, so without a fixed
+        // floor the Picker-backed box renders shorter than the Menu-backed one (and the text fields).
+        #if os(iOS)
+        self.padding(.horizontal, Theme.Space.x3).frame(minHeight: 48)
+        #else
+        self.padding(.horizontal, Theme.Space.x3).frame(minHeight: 56)
         #endif
     }
 

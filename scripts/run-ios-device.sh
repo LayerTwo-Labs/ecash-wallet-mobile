@@ -33,6 +33,7 @@ xcodebuild \
   -destination "id=$DEVICE_ID" \
   -derivedDataPath "$DERIVED" \
   -allowProvisioningUpdates \
+  -skipPackagePluginValidation \
   SKIP_ACTION=none \
   build
 

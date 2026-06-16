@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict/>
+<dict>
+	<!-- Allow cleartext HTTP to localhost / .local. Lets the iOS Simulator reach a dev CoinNews
+	     indexer on the host (e.g. BitWindow at http://127.0.0.1:30301). NSAllowsLocalNetworking is
+	     the App-Store-sanctioned ATS exception (local only) — production endpoints are https. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+</dict>
 </plist>

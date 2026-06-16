@@ -49,6 +49,54 @@ final class AppState {
     /// per network (`PriceProviderRegistry`); fiat shows only for networks that have one (e.g. mainnet).
     let price = PriceService()
 
+    /// Local per-network topic subscriptions (a client-side "follow" preference — CoinNews topics are
+    /// per network, so this is keyed by network too).
+    let topicSubscriptions = TopicSubscriptionStore()
+
+    /// News tab feed for the **selected wallet's network**. CoinNews is on-chain per network, so the
+    /// feed, topics, and follow set all differ by network; we cache one `CoinNewsViewModel` per
+    /// network (`coinNewsByNetwork`) and re-point `coinNews` on every wallet/network switch. Each is
+    /// long-lived (survives tab switches), like `price`.
+    private(set) var coinNews: CoinNewsViewModel
+    private var coinNewsByNetwork: [WalletNetwork: CoinNewsViewModel] = [:]
+    private var coinNewsNetwork: WalletNetwork?
+
+    /// The selected wallet's CoinNews feed (cached per network). `nil` only with no wallet.
+    private func feed(for network: WalletNetwork) -> CoinNewsViewModel {
+        if let existing = coinNewsByNetwork[network] { return existing }
+        let vm = Self.makeCoinNewsFeed(for: network)
+        vm.followed = topicSubscriptions.followed(on: network)
+        coinNewsByNetwork[network] = vm
+        return vm
+    }
+
+    /// Re-point `coinNews` at the selected wallet's network feed (no-op if unchanged). Called after
+    /// every state mutation via `refresh()`, so a wallet switch swaps the News tab to that network.
+    private func updateCoinNewsFeed() {
+        let network = selectedWallet?.network ?? coinNewsNetwork ?? .signet
+        guard network != coinNewsNetwork else { return }
+        coinNewsNetwork = network
+        coinNews = feed(for: network)
+    }
+
+    /// Builds the per-network feed. Defaults to the seeded source (no networking plumbing); a DEV
+    /// override pulls from a live indexer when `COINNEWS_DEV_ENDPOINT` is set (e.g. BitWindow on the
+    /// iOS Simulator: `COINNEWS_DEV_ENDPOINT=http://127.0.0.1:30301` + `COINNEWS_DEV_TOKEN=<cookie>`).
+    /// The dev BitWindow node serves exactly ONE network — `COINNEWS_DEV_NETWORK` (default `signet`)
+    /// — so only that network's feed uses it; others fall back to the (network-scoped) seed. The
+    /// public `coinnews.v1` endpoint will replace the dev override per network.
+    private static func makeCoinNewsFeed(for network: WalletNetwork) -> CoinNewsViewModel {
+        let env = ProcessInfo.processInfo.environment
+        if let endpoint = env["COINNEWS_DEV_ENDPOINT"], let url = URL(string: endpoint) {
+            let devNetwork = WalletNetwork(rawValue: env["COINNEWS_DEV_NETWORK"] ?? "") ?? .signet
+            if network == devNetwork {
+                let ep = CoinNewsEndpoint(baseURL: url, bearerToken: env["COINNEWS_DEV_TOKEN"])
+                return CoinNewsViewModel(network: network, fetcher: BitWindowCoinNewsClient(endpoint: ep))
+            }
+        }
+        return CoinNewsViewModel(network: network, fetcher: SeededCoinNewsClient(network: network))
+    }
+
     enum SyncState: Equatable {
         case idle
         case syncing
@@ -66,6 +114,15 @@ final class AppState {
         if let saved = UserDefaults.standard.string(forKey: Self.selectedWalletKey) {
             manager.select(id: saved)
         }
+        // Point the News feed at the selected wallet's network up front (CoinNews is per network).
+        // Build it via a direct member assignment now (a stored prop with no default must be set
+        // before `self` is fully initialized); the cache + `updateCoinNewsFeed()` are populated
+        // below, once every stored property exists.
+        let selectedId = manager.selectedWalletId
+        let initialNetwork = manager.wallets.first { $0.id == selectedId }?.network ?? .signet
+        let initialFeed = Self.makeCoinNewsFeed(for: initialNetwork)
+        initialFeed.followed = topicSubscriptions.followed(on: initialNetwork)
+        coinNews = initialFeed
         // App-lock: default ON. Lock at launch only when armed AND there's a wallet to protect
         // (a fresh install with no wallet is never gated). `object(forKey:) as? Bool` so an unset
         // default reads as ON rather than `bool(forKey:)`'s false.
@@ -79,6 +136,11 @@ final class AppState {
             authenticate: { reason in await DeviceAuth.authenticate(reason: reason) },
             persist: { UserDefaults.standard.set($0, forKey: Self.appLockKey) },
             persistGrace: { UserDefaults.standard.set($0, forKey: Self.appLockGraceKey) })
+        // Now that all stored properties exist, register the initial feed in the per-network cache
+        // (subscript mutation needs a fully-initialized `self`). `updateCoinNewsFeed()` is a no-op
+        // for this network until the user switches to a wallet on a different one.
+        coinNewsByNetwork[initialNetwork] = initialFeed
+        coinNewsNetwork = initialNetwork
         refresh()
     }
 
@@ -95,6 +157,13 @@ final class AppState {
     /// The most recent transactions for the Home preview (full list lives on the Activity tab).
     var recentTransactions: [WalletTx] {
         Array(transactions.prefix(10))
+    }
+
+    /// Whether the News (CoinNews) tab is offered for the selected wallet's network. Code-level
+    /// capability (see `CoinNewsAvailability`) — off on Bitcoin mainnet. Drives tab visibility.
+    var coinNewsAvailable: Bool {
+        guard let network = selectedWallet?.network else { return false }
+        return CoinNewsAvailability.isAvailable(on: network)
     }
 
     /// Display unit label (sBTC / tBTC / BTC) for the selected wallet's network.
@@ -177,6 +246,62 @@ final class AppState {
             },
             // Validate the recipient against THIS wallet's network (checksum + prefix), up front.
             validateAddress: { address in self.manager.isValidAddress(address, network: wallet.network) })
+    }
+
+    /// Vend a `PostStoryViewModel` for the selected wallet (CoinNews "post news"), or nil if none.
+    /// Topics come from the News feed's fetched list (`ListTopics`).
+    func makePostStoryViewModel() -> PostStoryViewModel? {
+        guard let id = selectedWalletId, let wallet = selectedWallet else { return nil }
+        let params = NetworkRegistry.params(for: wallet.network)
+        return PostStoryViewModel(
+            network: wallet.network,
+            unitLabel: params.unitLabel,
+            availableTopics: coinNews.topics,
+            publish: { payloadHex, feeRate in
+                try await self.manager.publishOpReturn(walletId: id, payloadHex: payloadHex, feeRate: feeRate)
+            },
+            onPublished: { tx in self.insertPending(tx) },
+            fiatString: { sats in self.fiatString(forSats: sats) },
+            authorize: { reason in
+                // Require device auth before publishing when app-lock is on (§7); pass through if off.
+                guard self.appLock.enabled else { return true }
+                return await DeviceAuth.authenticate(reason: reason)
+            })
+    }
+
+    /// Vend a `CreateTopicViewModel` (CoinNews Topic Creation §5). `onCreated` hands back the new
+    /// topic so the presenter can react (select it while composing, or optimistically list + follow
+    /// it in the manager). The new topic is also optimistically added to the current network's feed.
+    func makeCreateTopicViewModel(onCreated: @escaping @MainActor (CoinNewsTopic) -> Void) -> CreateTopicViewModel? {
+        guard let id = selectedWalletId, let wallet = selectedWallet else { return nil }
+        let params = NetworkRegistry.params(for: wallet.network)
+        return CreateTopicViewModel(
+            network: wallet.network,
+            unitLabel: params.unitLabel,
+            publish: { payloadHex, feeRate in
+                try await self.manager.publishOpReturn(walletId: id, payloadHex: payloadHex, feeRate: feeRate)
+            },
+            onCreated: { topic, tx in
+                self.insertPending(tx)
+                self.coinNews.addLocalTopic(topic)   // surface it before the indexer catches up
+                onCreated(topic)
+            },
+            fiatString: { sats in self.fiatString(forSats: sats) },
+            authorize: { reason in
+                guard self.appLock.enabled else { return true }
+                return await DeviceAuth.authenticate(reason: reason)
+            })
+    }
+
+    /// Vend a `TopicsViewModel` for the selected wallet's network (the topic manager). Browses topics
+    /// from the network's feed, follows/unfollows via the per-network subscription store, and applies
+    /// the feed filter. `nil` with no selected wallet.
+    func makeTopicsViewModel() -> TopicsViewModel? {
+        guard selectedWallet != nil else { return nil }
+        return TopicsViewModel(
+            feed: coinNews,
+            subscriptions: topicSubscriptions,
+            makeCreateTopic: { onCreated in self.makeCreateTopicViewModel(onCreated: onCreated) })
     }
 
     /// Optimistically surface a just-broadcast tx (pending, no timestamp → sorts to the top).
@@ -360,6 +485,9 @@ final class AppState {
         // Persist the active wallet so it survives cold starts (create/import/select/remove all
         // funnel through here).
         UserDefaults.standard.set(selectedWalletId, forKey: Self.selectedWalletKey)
+        // Swap the News feed to the (now) selected wallet's network — no-op if the network is the
+        // same (e.g. switching between two testnet wallets keeps the same feed).
+        updateCoinNewsFeed()
         // We deliberately do NOT read balance/transactions here. Both require building the BDK engine
         // (open SQLite, derive descriptors), and on a wallet with real chain data that blocks the
         // main thread long enough to ANR on launch (CLAUDE.md §10 — BDK work stays off the main

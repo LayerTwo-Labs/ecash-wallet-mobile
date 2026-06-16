@@ -53,7 +53,7 @@ struct Keypad: View {
         .buttonStyle(.plain)
     }
 
-    private func key(icon: String, action: @escaping () -> Void) -> some View {
+    private func key(icon: Icon, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack {
                 Image(icon: icon)

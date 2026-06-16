@@ -25,11 +25,7 @@ struct TxRow: View {
 
             VStack(alignment: .leading, spacing: Theme.Space.x2) {
                 HStack(spacing: Theme.Space.x2) {
-                    (tx.isReceived
-                        ? Text("Received", bundle: .module, comment: "tx row: incoming")
-                        : Text("Sent", bundle: .module, comment: "tx row: outgoing"))
-                        .font(.grotesk(16, .semibold))
-                        .foregroundStyle(Theme.Colors.text0)
+                    titleLabel
                     if isPending {
                         Text("Pending", bundle: .module, comment: "tx row: unconfirmed tag")
                             .font(.jbMono(11, .medium))
@@ -67,11 +63,38 @@ struct TxRow: View {
 
     private var isPending: Bool { tx.confirmations == 0 }
 
-    /// Direction chip: tinted circle + direction glyph. Pending sends go amber, like the mock.
+    /// Title line: CoinNews posts read "CoinNews story / topic / …" (a 0-value OP_RETURN is not a
+    /// real "Sent"); everything else is the usual Received/Sent.
+    @ViewBuilder private var titleLabel: some View {
+        if let kind = tx.coinNewsKind {
+            Text(verbatim: "CoinNews \(Self.displayKind(kind))")
+                .font(.grotesk(16, .semibold))
+                .foregroundStyle(Theme.Colors.text0)
+        } else {
+            (tx.isReceived
+                ? Text("Received", bundle: .module, comment: "tx row: incoming")
+                : Text("Sent", bundle: .module, comment: "tx row: outgoing"))
+                .font(.grotesk(16, .semibold))
+                .foregroundStyle(Theme.Colors.text0)
+        }
+    }
+
+    private static func displayKind(_ kind: String) -> String {
+        switch kind {
+        case "story": return "story"
+        case "topic": return "topic"
+        case "comment": return "comment"
+        case "upvote", "downvote": return "vote"
+        default: return "post"
+        }
+    }
+
+    /// Direction chip: tinted circle + glyph. CoinNews posts use the news glyph in the brand accent;
+    /// pending sends go amber, like the mock.
     private var chip: some View {
         ZStack {
             Circle().fill(chipTint)
-            Image(icon: tx.isReceived ? Icon.receive : Icon.send)
+            Image(icon: chipIcon)
                 .resizable().scaledToFit()
                 .frame(width: 15, height: 15)
                 .foregroundStyle(chipGlyph)
@@ -79,12 +102,19 @@ struct TxRow: View {
         .frame(width: 36, height: 36)
     }
 
+    private var chipIcon: Icon {
+        if tx.isCoinNews { return Icon.news }
+        return tx.isReceived ? Icon.receive : Icon.send
+    }
+
     private var chipTint: Color {
+        if tx.isCoinNews { return Theme.Colors.accentTint }
         if isPending { return Theme.Colors.warningTint }
         return tx.isReceived ? Theme.Colors.positiveTint : Theme.Colors.bg2
     }
 
     private var chipGlyph: Color {
+        if tx.isCoinNews { return Theme.Colors.accent }
         if isPending { return Theme.Colors.warning }
         return tx.isReceived ? Theme.Colors.positive : Theme.Colors.text1
     }

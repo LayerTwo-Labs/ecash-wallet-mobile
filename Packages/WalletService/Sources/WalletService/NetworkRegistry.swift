@@ -70,7 +70,9 @@ public enum NetworkRegistry {
                 coinType: Int32(1),
                 addressHRP: "tb",
                 unitLabel: "sBTC",
-                defaultBackend: "tcp://node.signet.drivechain.info:50001",
+                // TLS endpoint — same electrs instance as :50001 (plaintext), just encrypted
+                // transport (verified live: electrs/0.11.0, identical chain tip).
+                defaultBackend: "ssl://node.signet.drivechain.info:50002",
                 explorerTxTemplate: "https://explorer.signet.drivechain.info/tx/{txid}",
                 displayName: "L2L Signet")
         case .regtest:

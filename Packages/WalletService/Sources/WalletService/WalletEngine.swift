@@ -68,6 +68,10 @@ public protocol WalletEngineProtocol: AnyObject {
     /// Build → sign → broadcast happens inside; returns the broadcast tx.
     func send(to address: String, amount: Amount, feeRate: FeeRate) throws -> WalletTx
 
+    /// Publish an `OP_RETURN` data output (e.g. a CoinNews message). Funds the fee from the wallet's
+    /// spendable coins, adds change, signs, and broadcasts. Returns the optimistic pending tx.
+    func publishData(_ data: Data, feeRate: FeeRate) throws -> WalletTx
+
     /// Sync against the wallet's network backend. Off the main actor.
     func sync() async throws
 }
@@ -200,9 +204,71 @@ public final class WalletEngine: WalletEngineProtocol {
                                    timestampEpochSeconds: timestamp,
                                    isRBF: tx.isExplicitlyRbf(),
                                    blockHeight: blockHeight,
-                                   vsize: Int64(tx.vsize())))
+                                   vsize: Int64(tx.vsize()),
+                                   coinNewsKind: coinNewsKind(of: tx)))
         }
         return result
+    }
+
+    // MARK: - CoinNews OP_RETURN detection
+    //
+    // BDK hands us the full transaction, so we can scan its outputs for a CoinNews `OP_RETURN`
+    // (`OP_RETURN ‖ push("CN" ‖ typeTag ‖ …)`) and label the tx for the Activity list. Pure byte
+    // inspection — no decode of the message body.
+
+    /// The CoinNews kind for a transaction, by scanning its outputs for a CoinNews OP_RETURN.
+    private func coinNewsKind(of tx: Transaction) -> String? {
+        for out in tx.output() {
+            // `Script.toBytes()` → `Data` (bdk-swift) / `ByteArray` (bdk-android, wrap with
+            // `Data(platformValue:)`, same as `addData`).
+            #if SKIP
+            let script = Data(platformValue: out.scriptPubkey.toBytes())
+            #else
+            let script = out.scriptPubkey.toBytes()
+            #endif
+            if let kind = WalletEngine.coinNewsKind(fromScript: script) { return kind }
+        }
+        return nil
+    }
+
+    /// CoinNews kind from an OP_RETURN output script, or nil if it isn't a CoinNews OP_RETURN.
+    /// Script shape: `0x6a` (OP_RETURN) then one data push (direct length `0x01..0x4b`, or
+    /// `OP_PUSHDATA1 = 0x4c` followed by a length byte), whose payload starts with `"CN"` + tag.
+    static func coinNewsKind(fromScript script: Data) -> String? {
+        guard script.count >= 2, script[0] == UInt8(0x6a) else { return nil }
+        var i = 1
+        let op = script[i]
+        i += 1
+        var dataLen = 0
+        if op >= UInt8(0x01) && op <= UInt8(0x4b) {
+            dataLen = Int(op)
+        } else if op == UInt8(0x4c) && i < script.count {
+            dataLen = Int(script[i])
+            i += 1
+        } else {
+            return nil
+        }
+        // Need "CN"(2) + tag(1) at the start of the pushed payload.
+        guard dataLen >= 3, i + dataLen <= script.count else { return nil }
+        guard script[i] == UInt8(0x43), script[i + 1] == UInt8(0x4e) else { return nil }
+        return coinNewsKind(forTag: script[i + 2])
+    }
+
+    /// CoinNews kind from a raw payload (the bytes we hand to `addData`: `"CN" ‖ tag ‖ …`).
+    static func coinNewsKind(fromPayload payload: Data) -> String? {
+        guard payload.count >= 3, payload[0] == UInt8(0x43), payload[1] == UInt8(0x4e) else { return nil }
+        return coinNewsKind(forTag: payload[2])
+    }
+
+    /// Map a CoinNews type tag (§2) to a display kind.
+    static func coinNewsKind(forTag tag: UInt8) -> String? {
+        if tag == UInt8(0x01) { return "topic" }
+        if tag == UInt8(0x02) { return "story" }
+        if tag == UInt8(0x03) { return "comment" }
+        if tag == UInt8(0x04) { return "upvote" }
+        if tag == UInt8(0x05) { return "downvote" }
+        if tag == UInt8(0x06) { return "continuation" }
+        return nil
     }
 
     /// Outpoints to KEEP OUT of coin selection: unconfirmed UTXOs that aren't our own change.
@@ -355,6 +421,90 @@ public final class WalletEngine: WalletEngineProtocol {
                         isRBF: tx.isExplicitlyRbf(),
                         blockHeight: nil,
                         vsize: Int64(tx.vsize()))
+    }
+
+    /// Publish an `OP_RETURN` data output (CoinNews message). Same build → sign → broadcast path as
+    /// `send`, but the only output is the value-0 `OP_RETURN` (`TxBuilder.addData`); BDK funds the
+    /// fee from spendable coins and adds change. The data is one push — relay policy caps it at 80
+    /// bytes on default nodes, but L2L networks raise `-datacarriersize` for CoinNews, so we don't
+    /// hard-cap here; an over-limit payload simply fails at broadcast.
+    public func publishData(_ data: Data, feeRate: FeeRate) throws -> WalletTx {
+        let psbt: Psbt
+        do {
+            #if SKIP
+            let bdkFeeRate = try org.bitcoindevkit.FeeRate.fromSatPerVb(satVb: UInt64(feeRate.satPerVByte))
+            #else
+            let bdkFeeRate = try BitcoinDevKit.FeeRate.fromSatPerVb(satVb: UInt64(feeRate.satPerVByte))
+            #endif
+            // Same spend policy as send: confirmed + own change only.
+            let untrusted: [OutPoint] = untrustedUnconfirmedOutpoints()
+            #if SKIP
+            let unspendable = untrusted.kotlin() as! kotlin.collections.List<OutPoint>
+            #else
+            let unspendable = untrusted
+            #endif
+            // bdk-android's `addData` takes a Kotlin `ByteArray` (`Data.platformValue`); bdk-swift
+            // takes `Data`.
+            #if SKIP
+            let withData = TxBuilder().addData(data: data.platformValue)
+            #else
+            let withData = TxBuilder().addData(data: data)
+            #endif
+            psbt = try withData
+                .feeRate(feeRate: bdkFeeRate)
+                .unspendable(unspendable: unspendable)
+                .finish(wallet: wallet)
+        } catch {
+            throw WalletError.mapping(rawDescription: "\(error)")
+        }
+
+        // Sign on demand (watch-only build → transient key, §7).
+        do {
+            let finalized = try signPsbt(psbt)
+            guard finalized else { throw WalletError.signingFailed }
+        } catch let e as WalletError {
+            throw e
+        } catch {
+            throw WalletError.signingFailed
+        }
+
+        let tx: Transaction
+        do {
+            tx = try psbt.extractTx()
+        } catch {
+            throw WalletError.signingFailed
+        }
+        do {
+            switch backend.kind {
+            case .electrum:
+                let client = try ElectrumClient(url: backend.url, socks5: backend.socks5)
+                _ = try client.transactionBroadcast(tx: tx)
+            case .esplora:
+                let client = EsploraClient(url: backend.url, proxy: backend.socks5)
+                try client.broadcast(transaction: tx)
+            }
+        } catch {
+            throw WalletError.broadcastFailed
+        }
+
+        _ = try? wallet.persist(persister: persister)
+        let flow = wallet.sentAndReceived(tx: tx)
+        let netSats = Int64(flow.received.toSat()) - Int64(flow.sent.toSat())
+        var feeSats: Int64? = nil
+        if let bdkFee = (try? wallet.calculateFee(tx: tx))?.toSat() {
+            feeSats = Int64(bdkFee)
+        }
+        // We built this OP_RETURN ourselves — classify straight from the payload so the optimistic
+        // Activity row is marked immediately (sync later re-derives it from the output script).
+        return WalletTx(txid: "\(tx.computeTxid())",
+                        netSats: netSats,
+                        feeSats: feeSats,
+                        confirmations: 0,
+                        timestampEpochSeconds: nil,
+                        isRBF: tx.isExplicitlyRbf(),
+                        blockHeight: nil,
+                        vsize: Int64(tx.vsize()),
+                        coinNewsKind: WalletEngine.coinNewsKind(fromPayload: data))
     }
 
     /// Sync against the wallet's Electrum backend.

@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Build, install, and launch the iOS app on the BOOTED simulator from the command line, skipping the
+# Android build leg (SKIP_ACTION=none). Use this instead of `skip app launch --ios` when the Android
+# gradle/skip-android-bridge leg is failing or no emulator is up — `swift build` + `skip export`
+# already verify the Android side separately.
+#
+# Forwards the CoinNews DEV endpoint to the app via SIMCTL_CHILD_* (so the sim pulls from a local
+# BitWindow) when its auth cookie is present. Override COINNEWS_DEV_ENDPOINT/NETWORK in the env.
+#
+# Usage:  scripts/run-ios-sim.sh [Debug|Release]   (default: Debug)
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+SCHEME="ECashWalletMobile App"
+CONFIG="${1:-Debug}"
+BUNDLE_ID="com.layertwolabs.mobile.ecashwallet"
+DERIVED=".build/Darwin/DerivedData"
+
+SIM_ID="$(xcrun simctl list devices booted | grep -oE '[0-9A-Fa-f-]{36}' | head -1)"
+if [ -z "${SIM_ID:-}" ]; then
+  echo "No booted simulator. Open one in Simulator.app (or 'xcrun simctl boot <udid>')." >&2
+  exit 1
+fi
+echo "▸ Simulator: $SIM_ID   Config: $CONFIG"
+
+# CoinNews dev endpoint → forwarded into the launched app's environment.
+COOKIE="$HOME/Library/Application Support/bitwindow/.auth.cookie"
+if [ -f "$COOKIE" ]; then
+  export SIMCTL_CHILD_COINNEWS_DEV_ENDPOINT="${COINNEWS_DEV_ENDPOINT:-http://127.0.0.1:30301}"
+  export SIMCTL_CHILD_COINNEWS_DEV_TOKEN="$(tr -d '\r\n' < "$COOKIE")"
+  export SIMCTL_CHILD_COINNEWS_DEV_NETWORK="${COINNEWS_DEV_NETWORK:-signet}"
+  echo "▸ CoinNews dev endpoint: $SIMCTL_CHILD_COINNEWS_DEV_ENDPOINT (network $SIMCTL_CHILD_COINNEWS_DEV_NETWORK)"
+fi
+
+echo "▸ Building (Android leg disabled via SKIP_ACTION=none)…"
+xcodebuild \
+  -project Darwin/ECashWalletMobile.xcodeproj \
+  -scheme "$SCHEME" \
+  -configuration "$CONFIG" \
+  -destination "id=$SIM_ID" \
+  -derivedDataPath "$DERIVED" \
+  -skipPackagePluginValidation \
+  SKIP_ACTION=none \
+  build
+
+APP="$(find "$DERIVED/Build/Products/$CONFIG-iphonesimulator" -maxdepth 1 -name '*.app' | head -1)"
+if [ -z "${APP:-}" ]; then echo "Build produced no .app under $CONFIG-iphonesimulator" >&2; exit 1; fi
+
+echo "▸ Installing $APP …"
+xcrun simctl install "$SIM_ID" "$APP"
+
+echo "▸ Launching $BUNDLE_ID …"
+xcrun simctl launch "$SIM_ID" "$BUNDLE_ID"
+echo "✓ Done."

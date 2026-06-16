@@ -319,6 +319,83 @@ public final class WalletManager: @unchecked Sendable {
         let engine = try liveEngine(walletId: walletId)
         return try engine.send(to: address, amount: amount, feeRate: feeRate)
     }
+
+    /// Publish a CoinNews (or any) `OP_RETURN` message. The payload crosses the bridge as a hex
+    /// string (bridge-safe) and is decoded to bytes here; the app builds it with `CoinNewsCodec`.
+    /// Funds the fee from spendable coins, signs, broadcasts. Returns the optimistic pending tx.
+    public func publishOpReturn(walletId: String, payloadHex: String,
+                                feeRate: FeeRate) async throws -> WalletTx {
+        guard let data = Self.dataFromHex(payloadHex) else {
+            throw WalletError.mapping(rawDescription: "bad payload hex")
+        }
+        let engine = try liveEngine(walletId: walletId)
+        return try engine.publishData(data, feeRate: feeRate)
+    }
+
+    /// Publish a CoinNews **Vote** (§8) against the target Item identified by `(targetTxid, targetVout)`.
+    /// Signs with the wallet's CoinNews identity key (BIP-340), assembles the 111-byte message, and
+    /// broadcasts it as an `OP_RETURN`. `upvote == false` → downvote.
+    public func publishVote(walletId: String, targetTxid: String, targetVout: Int32,
+                            upvote: Bool, feeRate: FeeRate) async throws -> WalletTx {
+        let identity = try coinNewsIdentityKey(walletId: walletId)
+        guard let targetId = CoinNewsCrypto.itemId(txidHex: targetTxid, vout: UInt32(targetVout)) else {
+            throw WalletError.mapping(rawDescription: "invalid target txid")
+        }
+        let payload = try CoinNewsMessage.signedVote(targetId: targetId, upvote: upvote,
+                                                     identityPrivateKey: identity, auxRand: Self.zeroAux)
+        let engine = try liveEngine(walletId: walletId)
+        return try engine.publishData(payload, feeRate: feeRate)
+    }
+
+    /// Publish a CoinNews **Comment** (§7) replying to the parent Item `(parentTxid, parentVout)`,
+    /// with a text `body`. Signs (BIP-340) + broadcasts as an `OP_RETURN`.
+    public func publishComment(walletId: String, parentTxid: String, parentVout: Int32,
+                               body: String, feeRate: FeeRate) async throws -> WalletTx {
+        let identity = try coinNewsIdentityKey(walletId: walletId)
+        guard let parentId = CoinNewsCrypto.itemId(txidHex: parentTxid, vout: UInt32(parentVout)) else {
+            throw WalletError.mapping(rawDescription: "invalid parent txid")
+        }
+        let payload = try CoinNewsMessage.signedComment(parentId: parentId, body: body,
+                                                        identityPrivateKey: identity, auxRand: Self.zeroAux)
+        let engine = try liveEngine(walletId: walletId)
+        return try engine.publishData(payload, feeRate: feeRate)
+    }
+
+    /// Derive the wallet's CoinNews identity private key on demand (never persisted — Golden Rule §2).
+    private func coinNewsIdentityKey(walletId: String) throws -> Data {
+        guard let wallet = wallets.first(where: { $0.id == walletId }),
+              let phrase = try keyStore.loadMnemonic(walletId: walletId) else {
+            throw WalletError.signingFailed
+        }
+        return try CoinNewsIdentity.privateKey(mnemonicPhrase: phrase, network: wallet.network)
+    }
+
+    /// BIP-340 aux randomness. Zero is valid + deterministic; TODO: secure-random for fault-attack
+    /// protection (defense-in-depth — the signed data is public, so determinism leaks nothing here).
+    private static let zeroAux = Data([UInt8](repeating: UInt8(0), count: 32))
+
+    // Iterate the ASCII (UTF-8) bytes + integer-range matching, so this transpiles cleanly to Kotlin
+    // (a `Character` switch / `Array(String)` does not).
+    private static func dataFromHex(_ hex: String) -> Data? {
+        let ascii = Array(hex.utf8)
+        guard ascii.count % 2 == 0 else { return nil }
+        var bytes = [UInt8]()
+        var i = 0
+        while i < ascii.count {
+            guard let hi = hexNibble(ascii[i]), let lo = hexNibble(ascii[i + 1]) else { return nil }
+            bytes.append(UInt8(hi * 16 + lo))
+            i += 2
+        }
+        return Data(bytes)
+    }
+
+    private static func hexNibble(_ b: UInt8) -> Int? {
+        let v = Int(b)
+        if v >= 48 && v <= 57 { return v - 48 }    // '0'–'9'
+        if v >= 97 && v <= 102 { return v - 87 }   // 'a'–'f'
+        if v >= 65 && v <= 70 { return v - 55 }    // 'A'–'F'
+        return nil
+    }
 }
 
 #endif // !SKIP_BRIDGE — bridged module: bodies excluded from the bridge compile

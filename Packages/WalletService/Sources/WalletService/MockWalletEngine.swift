@@ -32,6 +32,7 @@ public final class MockWalletEngine: WalletEngineProtocol {
     public private(set) var lastSendAddress: String?
     public private(set) var lastSendAmount: Amount?
     public private(set) var lastSendFeeRate: FeeRate?
+    public private(set) var lastPublishedData: Data?
 
     public init(network: WalletNetwork = .testnet4,
                 balance: Amount = .zero,
@@ -83,6 +84,18 @@ public final class MockWalletEngine: WalletEngineProtocol {
         // A deterministic pending, outgoing tx (RBF on by default, like BDK).
         return WalletTx(txid: "mocktxid",
                         netSats: -amount.sats,
+                        feeSats: feeRate.satPerVByte,
+                        confirmations: 0,
+                        timestampEpochSeconds: nil,
+                        isRBF: true)
+    }
+
+    public func publishData(_ data: Data, feeRate: FeeRate) throws -> WalletTx {
+        if let error = errorToThrow { throw error }
+        lastPublishedData = data
+        lastSendFeeRate = feeRate
+        return WalletTx(txid: "mockpublishtxid",
+                        netSats: -feeRate.satPerVByte,   // just the fee leaves the wallet
                         feeSats: feeRate.satPerVByte,
                         confirmations: 0,
                         timestampEpochSeconds: nil,

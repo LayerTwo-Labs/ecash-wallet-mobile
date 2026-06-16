@@ -101,7 +101,7 @@ struct ReceiveScreen: View {
     }
 
     /// A bordered, full-width action chip (matches the secondary `WalletButton` look).
-    private func actionLabel(icon: String, title: LocalizedStringKey) -> some View {
+    private func actionLabel(icon: Icon, title: LocalizedStringKey) -> some View {
         HStack(spacing: Theme.Space.x2) {
             Image(icon: icon).resizable().scaledToFit().frame(width: 16, height: 16)
             Text(title, bundle: .module).textStyle(.button)

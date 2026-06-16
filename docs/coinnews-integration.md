@@ -58,19 +58,30 @@ do build → sign → broadcast; this adds an `OP_RETURN` output and an author s
   only *after* the tx is built (txid). For references (a Comment's `parent_id`, a Vote's `target_id`),
   the publisher already holds the target outpoint (it's rendering the target) and hashes it.
 
-### 3.2 Author identity + Schnorr signing — THE gap
-- CoinNews authors are **BIP-340 x-only secp256k1 pubkeys**, distinct from the wallet's BIP-84
-  spend addresses. We need a **dedicated CoinNews identity key** derived from the wallet seed (a
-  fixed derivation path — DECIDE which; one identity per wallet to start). Derive/sign on demand,
-  never persist the private key (Golden Rule §2 / `docs/key-storage.md`).
-- Comments/Votes are signed with **BIP-340 Schnorr over a per-type tagged hash**
-  (`tagged_hash("CoinNews/Vote", …)`, `tagged_hash("CoinNews/Comment", …)`). **VERIFY:** does the BDK
-  binding expose raw Schnorr signing of an arbitrary 32-byte message? Standard wallet FFIs often
-  don't — this may require extending `bdk-ffi` or pulling a `secp256k1`/`rust-secp` Schnorr primitive
-  into `WalletService`. Per Golden Rule §1 (BDK owns crypto), do NOT hand-roll Schnorr — surface it
-  through the Rust core. This is the single biggest unknown for publishing.
-- Stories are **unsigned** (attribution = first input address), so a Story-only publisher needs no
-  Schnorr — useful for a first publishing slice.
+### 3.2 Author identity + Schnorr signing — DECISIONS (2026-06-15)
+- **Identity model (DECIDED): one CoinNews identity per wallet, derived from the wallet seed** at a
+  dedicated BIP-340 path (its own branch, distinct from the `m/84'/…` spend keys). Recoverable on
+  restore; "wallet = identity." Derive/sign on demand, never persist the key (Golden Rule §2 /
+  `docs/key-storage.md`). NOTE: revisit supporting **multiple identities per wallet** later (path
+  identity-index `…/0'`, `…/1'`, + an identity picker) — start with one. Privacy caveat: the publish
+  tx is funded by wallet coins, so a post is already linkable to the wallet on-chain via the funding
+  input regardless of the Schnorr key — the key is for **authorship + per-`(author,target)` vote
+  dedup (§8)**, not anonymity.
+- **Schnorr availability (RESOLVED): BDK does NOT expose it.** `DescriptorSecretKey.secretBytes()`
+  gives the raw 32-byte private key (cross-platform), but bdk-ffi has no raw Schnorr / priv→pub. So
+  we pull a secp256k1 lib into `WalletService` via the same `#if` seam as bdk-swift/bdk-android
+  (DECIDED — not the Rust/bdk-ffi route for now, though sidechain work may force that later):
+  - **iOS:** `swift-secp256k1` (21-DOT-DEV, industry standard), product **`P256K`**, `~0.23.2`.
+    `schnorrsig` is in its DEFAULT traits, so no trait wiring needed.
+  - **Android:** `fr.acinq.secp256k1:secp256k1-kmp-jni-android:0.17.3` (Maven), via `skip.yml`.
+  - Both wrap audited libsecp256k1; Golden Rule §1 (never hand-roll signing) upheld.
+- Comments/Votes sign **BIP-340 Schnorr over a per-type tagged hash**
+  (`tagged_hash("CoinNews/Vote", typetag ‖ target_id)`, `tagged_hash("CoinNews/Comment", parent_id ‖
+  tlv_blob)`). SHA-256 (for tagged hashes + ItemID) via platform crypto in the transpiled module
+  (CryptoKit iOS / `java.security.MessageDigest` Android under `#if SKIP`).
+- Stories/Topics are **unsigned** — Phase 1 codec (`CoinNewsCodec`, app module) + the OP_RETURN
+  publish path (`WalletEngine.publishData` / bridged `WalletManager.publishOpReturn`) are **BUILT &
+  spec-vector-tested** (2026-06-15). Comment/Vote (signed) is Phase 2, in progress.
 
 ### 3.3 Relay policy — the 111-byte problem
 - A **Vote/Comment is 111 bytes** of `OP_RETURN`, above the **80-byte** standard relay default. The

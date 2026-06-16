@@ -379,7 +379,7 @@ final class BDKWalletEngineTests: XCTestCase {
     }
 
     /// End-to-end `sync()` against the LIVE Signet Electrum endpoint from `NetworkRegistry`
-    /// (`tcp://node.signet.drivechain.info:50001` — the L2L Drivechain signet). Same gating/shape
+    /// (`ssl://node.signet.drivechain.info:50002` — the L2L Drivechain signet, TLS). Same gating/shape
     /// as the Testnet4 test: a fresh wallet → balance 0, proving connect→fullScan→applyUpdate→persist
     /// against this server. Run: `WALLETSERVICE_LIVE=1 swift test --filter testLiveSignetSync`.
     func testLiveSignetSync() async throws {
@@ -393,7 +393,10 @@ final class BDKWalletEngineTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: dir) }
         let keys = try factory.create(network: .signet, wordCount: 12) // fresh, empty
         let wallet = managedWallet(id: "live-signet", network: .signet, keys: keys)
-        let engine = try factory.engine(for: wallet, backendKind: "electrum", backendURL: "ssl://example.invalid:50002", backendProxy: nil, loadMnemonic: { keys.mnemonic })
+        // Hit the ACTUAL registry default (ssl://node.signet.drivechain.info:50002, TLS), so this
+        // also verifies BDK's ElectrumClient against the real endpoint — not a placeholder URL.
+        let backend = NetworkRegistry.params(for: .signet).defaultBackend
+        let engine = try factory.engine(for: wallet, backendKind: "electrum", backendURL: backend, backendProxy: nil, loadMnemonic: { keys.mnemonic })
 
         try await engine.sync() // must not throw against the live signet endpoint
         XCTAssertEqual(try engine.balance(), Amount.zero) // fresh wallet → empty

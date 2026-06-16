@@ -199,11 +199,16 @@ public struct WalletTx: Identifiable, Equatable, Hashable, Sendable {
     /// at the display edge. Signed Int64 (see above); nil if unknown.
     public let vsize: Int64?
 
+    /// If this tx carries a CoinNews `OP_RETURN`, its kind ("topic"/"story"/"comment"/"upvote"/
+    /// "downvote"/"continuation"); nil for ordinary transactions. Detected from the output scripts at
+    /// the engine boundary (the bridged surface stays String — never a raw enum). Lets the UI mark it.
+    public let coinNewsKind: String?
+
     public var id: String { txid }
 
     public init(txid: String, netSats: Int64, feeSats: Int64?,
                 confirmations: Int32, timestampEpochSeconds: Int64?, isRBF: Bool,
-                blockHeight: Int64? = nil, vsize: Int64? = nil) {
+                blockHeight: Int64? = nil, vsize: Int64? = nil, coinNewsKind: String? = nil) {
         self.txid = txid
         self.netSats = netSats
         self.feeSats = feeSats
@@ -212,7 +217,11 @@ public struct WalletTx: Identifiable, Equatable, Hashable, Sendable {
         self.isRBF = isRBF
         self.blockHeight = blockHeight
         self.vsize = vsize
+        self.coinNewsKind = coinNewsKind
     }
+
+    /// True if this transaction is a CoinNews post (any kind).
+    public var isCoinNews: Bool { coinNewsKind != nil }
 
     public var isReceived: Bool { netSats >= 0 }
     public var isConfirmed: Bool { confirmations > 0 }

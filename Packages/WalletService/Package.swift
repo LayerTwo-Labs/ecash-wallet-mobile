@@ -26,12 +26,17 @@ let package = Package(
         // BDK — Apple binary, linked only on Apple platforms. Android gets bdk-android
         // via Skip/skip.yml. Pinned to 2.3.x: stay pre-3.0.
         .package(url: "https://github.com/bitcoindevkit/bdk-swift.git", .upToNextMinor(from: "2.3.1")),
+        // BIP-340 Schnorr for CoinNews authorship (iOS/macOS only — Android uses
+        // fr.acinq.secp256k1 via Skip/skip.yml). Product `P256K`; `schnorrsig` is a default trait.
+        .package(url: "https://github.com/21-DOT-DEV/swift-secp256k1.git", .upToNextMinor(from: "0.23.2")),
     ],
     targets: [
         .target(name: "WalletService", dependencies: [
             .product(name: "SkipFoundation", package: "skip-foundation"),
             .product(name: "SkipKeychain", package: "skip-keychain"),
             .product(name: "BitcoinDevKit", package: "bdk-swift",
+                     condition: .when(platforms: [.iOS, .macOS])),
+            .product(name: "P256K", package: "swift-secp256k1",
                      condition: .when(platforms: [.iOS, .macOS])),
         ], plugins: [.plugin(name: "skipstone", package: "skip")]),
         // Parity tests: XCTest on Apple, transpiled to JUnit + run via Robolectric on `swift test`.

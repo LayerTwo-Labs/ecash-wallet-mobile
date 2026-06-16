@@ -173,7 +173,7 @@ struct WalletHomeScreen: View {
         }
     }
 
-    private func actionCircle(icon: String, title: LocalizedStringKey, prominent: Bool, enabled: Bool,
+    private func actionCircle(icon: Icon, title: LocalizedStringKey, prominent: Bool, enabled: Bool,
                               action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: Theme.Space.x2) {

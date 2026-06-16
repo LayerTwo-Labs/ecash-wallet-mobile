@@ -14,7 +14,7 @@ struct SettingsScreen: View {
 
     var body: some View {
         List {
-            Section("Security") {
+            Section(header: sectionHeader(Text("Security", bundle: .module, comment: "settings section: security"))) {
                 if let wallet = app.selectedWallet {
                     Button { showBackup = true } label: {
                         HStack {
@@ -30,9 +30,13 @@ struct SettingsScreen: View {
                         }
                     }
                 }
-                Toggle("Require unlock", isOn: Binding(
+                Toggle(isOn: Binding(
                     get: { app.appLock.enabled },
-                    set: { app.appLock.setEnabled($0) }))
+                    set: { app.appLock.setEnabled($0) })) {
+                    Text("Require unlock", bundle: .module, comment: "app-lock toggle label")
+                        .textStyle(.body)
+                        .foregroundStyle(Theme.Colors.text0)
+                }
                 Text("Ask for Face ID, fingerprint, or your passcode when opening the app.",
                      bundle: .module, comment: "require-unlock toggle explainer")
                     .textStyle(.xs)
@@ -40,39 +44,55 @@ struct SettingsScreen: View {
                 // Grace window before re-locking — so popping out to copy an address and coming
                 // right back doesn't re-prompt. Only relevant while the lock is armed.
                 if app.appLock.enabled {
-                    Picker("Auto-lock", selection: Binding(
-                        get: { app.appLock.graceSeconds },
-                        set: { app.appLock.setGraceSeconds($0) })) {
-                        Text("Immediately", bundle: .module, comment: "auto-lock: no grace period").tag(0)
-                        Text("After 10 seconds", bundle: .module, comment: "auto-lock grace option").tag(10)
-                        Text("After 30 seconds", bundle: .module, comment: "auto-lock grace option").tag(30)
-                        Text("After 1 minute", bundle: .module, comment: "auto-lock grace option").tag(60)
-                        Text("After 5 minutes", bundle: .module, comment: "auto-lock grace option").tag(300)
+                    Menu {
+                        Button { app.appLock.setGraceSeconds(0) } label: {
+                            Text("Immediately", bundle: .module, comment: "auto-lock: no grace period") }
+                        Button { app.appLock.setGraceSeconds(10) } label: {
+                            Text("After 10 seconds", bundle: .module, comment: "auto-lock grace option") }
+                        Button { app.appLock.setGraceSeconds(30) } label: {
+                            Text("After 30 seconds", bundle: .module, comment: "auto-lock grace option") }
+                        Button { app.appLock.setGraceSeconds(60) } label: {
+                            Text("After 1 minute", bundle: .module, comment: "auto-lock grace option") }
+                        Button { app.appLock.setGraceSeconds(300) } label: {
+                            Text("After 5 minutes", bundle: .module, comment: "auto-lock grace option") }
+                    } label: {
+                        menuRowLabel(Text("Auto-lock", bundle: .module, comment: "auto-lock grace period label"),
+                                     autoLockValueText)
                     }
                 }
             }
-            Section("Appearance") {
-                Picker("Theme", selection: $appearance) {
-                    Text("System", bundle: .module, comment: "appearance: follow system").tag("")
-                    Text("Light", bundle: .module, comment: "appearance: light mode").tag("light")
-                    Text("Dark", bundle: .module, comment: "appearance: dark mode").tag("dark")
+            Section(header: sectionHeader(Text("Appearance", bundle: .module, comment: "settings section: appearance"))) {
+                Menu {
+                    Button { appearance = "" } label: {
+                        Text("System", bundle: .module, comment: "appearance: follow system") }
+                    Button { appearance = "light" } label: {
+                        Text("Light", bundle: .module, comment: "appearance: light mode") }
+                    Button { appearance = "dark" } label: {
+                        Text("Dark", bundle: .module, comment: "appearance: dark mode") }
+                } label: {
+                    menuRowLabel(Text("Theme", bundle: .module, comment: "appearance picker label"),
+                                 themeValueText)
                 }
             }
             Section {
-                Picker("Display currency", selection: Binding(
-                    get: { app.fiatCurrency },
-                    set: { app.fiatCurrency = $0 })) {
-                    ForEach(FiatCurrency.allCases, id: \.self) { currency in
-                        Text(verbatim: currency.menuLabel).tag(currency)
-                    }
+                Menu {
+                    // Explicit buttons, not ForEach: ForEach children get a Compose start-inset in a
+                    // SkipUI Menu (they render indented vs. flush direct buttons).
+                    Button { app.fiatCurrency = .usd } label: { Text(verbatim: FiatCurrency.usd.menuLabel) }
+                    Button { app.fiatCurrency = .eur } label: { Text(verbatim: FiatCurrency.eur.menuLabel) }
+                    Button { app.fiatCurrency = .gbp } label: { Text(verbatim: FiatCurrency.gbp.menuLabel) }
+                    Button { app.fiatCurrency = .jpy } label: { Text(verbatim: FiatCurrency.jpy.menuLabel) }
+                } label: {
+                    menuRowLabel(Text("Display currency", bundle: .module, comment: "fiat currency picker label"),
+                                 Text(verbatim: app.fiatCurrency.menuLabel))
                 }
             } header: {
-                Text("Display currency", bundle: .module, comment: "fiat currency section header")
+                sectionHeader(Text("Display currency", bundle: .module, comment: "fiat currency section header"))
             } footer: {
                 Text("Fiat values appear on mainnet wallets only, priced via Bitfinex.",
                      bundle: .module, comment: "fiat currency section explainer")
             }
-            Section("Network") {
+            Section(header: sectionHeader(Text("Network", bundle: .module, comment: "settings section: network"))) {
                 NavigationLink {
                     NetworkSettingsScreen()
                 } label: {
@@ -81,7 +101,7 @@ struct SettingsScreen: View {
                         .foregroundStyle(Theme.Colors.text0)
                 }
             }
-            Section("About") {
+            Section(header: sectionHeader(Text("About", bundle: .module, comment: "settings section: about"))) {
                 Text(versionString)
                     .textStyle(.sm)
                     .foregroundStyle(Theme.Colors.text1)
@@ -95,7 +115,7 @@ struct SettingsScreen: View {
             }
             // Dev affordance — the iOS Keychain survives app deletion, so this is the reliable wipe
             // for repeated testing. Returns to the empty state. (Gate behind a debug flag later.)
-            Section("Developer") {
+            Section(header: sectionHeader(Text("Developer", bundle: .module, comment: "settings section: developer"))) {
                 Button { app.wipeAllWallets() } label: {
                     Text("Reset all wallet data", bundle: .module, comment: "developer reset button")
                         .textStyle(.body)
@@ -113,6 +133,47 @@ struct SettingsScreen: View {
             if let vm = app.makeBackupViewModel() {
                 BackupFlowView(viewModel: vm)
             }
+        }
+    }
+
+    /// A settings dropdown row: title + current value, both in our brand fonts. A plain `Picker`
+    /// renders its displayed value in the SYSTEM font (and styling the options doesn't change it),
+    /// so we use a `Menu` with a hand-built label we fully control. The opened menu items are a
+    /// native (platform-drawn) menu; the always-visible row is what we style here.
+    /// Section header in our brand font — a plain `Section("…")` title renders in the system font.
+    /// `.overline` is the design system's section-overline style (JetBrains Mono, uppercase).
+    private func sectionHeader(_ text: Text) -> some View {
+        text.textStyle(.overline).foregroundStyle(Theme.Colors.text1)
+    }
+
+    private func menuRowLabel(_ title: Text, _ value: Text) -> some View {
+        HStack {
+            title.textStyle(.body).foregroundStyle(Theme.Colors.text0)
+            Spacer()
+            value.textStyle(.body).foregroundStyle(Theme.Colors.text1)
+            Image(icon: Icon.expand)
+                .resizable().scaledToFit()
+                .frame(width: 18, height: 18)
+                .foregroundStyle(Theme.Colors.text2)
+        }
+    }
+
+    private var themeValueText: Text {
+        switch appearance {
+        case "light": return Text("Light", bundle: .module, comment: "appearance: light mode")
+        case "dark": return Text("Dark", bundle: .module, comment: "appearance: dark mode")
+        default: return Text("System", bundle: .module, comment: "appearance: follow system")
+        }
+    }
+
+    private var autoLockValueText: Text {
+        switch app.appLock.graceSeconds {
+        case 0: return Text("Immediately", bundle: .module, comment: "auto-lock: no grace period")
+        case 10: return Text("After 10 seconds", bundle: .module, comment: "auto-lock grace option")
+        case 30: return Text("After 30 seconds", bundle: .module, comment: "auto-lock grace option")
+        case 60: return Text("After 1 minute", bundle: .module, comment: "auto-lock grace option")
+        case 300: return Text("After 5 minutes", bundle: .module, comment: "auto-lock grace option")
+        default: return Text(verbatim: "\(app.appLock.graceSeconds)s")
         }
     }
 

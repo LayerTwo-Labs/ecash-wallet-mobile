@@ -150,7 +150,7 @@ struct WalletManagerSheet: View {
         return wallet.isBackedUp ? "\(network)" : "\(network) · Not backed up"
     }
 
-    private func actionRowLabel(icon: String, title: LocalizedStringKey) -> some View {
+    private func actionRowLabel(icon: Icon, title: LocalizedStringKey) -> some View {
         HStack(spacing: Theme.Space.x2) {
             Image(icon: icon).resizable().scaledToFit().frame(width: 16, height: 16)
             Text(title, bundle: .module).textStyle(.body)

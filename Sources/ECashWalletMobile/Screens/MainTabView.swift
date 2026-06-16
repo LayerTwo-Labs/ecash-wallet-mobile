@@ -7,41 +7,83 @@ import SwiftUI
 /// The app's main tabs. Top-level so `AppState` can own the selection (lets "See all" on Home
 /// switch to Activity).
 enum MainTab: String, Hashable {
-    case wallet, activity, settings
+    case wallet, activity, news, settings
 }
 
 /// The main shell once a wallet exists. Stock `TabView` → native tabs on each platform.
-/// Tab icons are Material Symbols `.symbolset` resources (never SF Symbols) and render identically
-/// on iOS and Android. The selected tab uses the **filled** variant (`*Fill`), unselected the
-/// outlined one — the Material 3 convention, applied on both platforms by swapping on `selection`.
+/// Tab icons resolve via `tabIcon(...)`: SF Symbols on iOS (the OS auto-fills the selected tab),
+/// Material `.symbolset`s on Android (swapped to the filled variant on selection, Material 3 style).
 struct MainTabView: View {
+    @Environment(AppState.self) var app
+
     // Plain @State, NOT @AppStorage: persisting the selected tab meant a crash on one tab put
     // every subsequent launch straight back into that tab — a permanent crash loop (this also
     // masqueraded as "non-deterministic" crashes while debugging). Always boot to Wallet.
     @State var selection = MainTab.wallet   // not `private` — Fuse bridges @State (skip-fuse rule)
 
+    /// The News tab is shown only when CoinNews is available on the selected wallet's network
+    /// (off on Bitcoin mainnet — see `CoinNewsAvailability`).
+    private var showNews: Bool { app.coinNewsAvailable }
+
+    /// Coerce a stale `.news` selection to `.wallet` while News is hidden (e.g. after switching to a
+    /// Bitcoin wallet), so the TabView never points at a missing tag. Switching back to a CoinNews
+    /// network restores `.news` as selected.
+    private var selectionBinding: Binding<MainTab> {
+        Binding(
+            get: { (!showNews && selection == .news) ? .wallet : selection },
+            set: { selection = $0 })
+    }
+
+    /// Tab-bar icon. iOS tab bars force the `.fill` symbol variant on EVERY item, so we override it
+    /// per-selection — `.none` for unselected (outline), `.fill` for selected. Android has no SF
+    /// Symbols and doesn't auto-fill, so it swaps to the filled Material `.symbolset` on selection.
+    @ViewBuilder
+    private func tabBarIcon(_ base: Icon, _ fill: Icon, selected: Bool) -> some View {
+        #if os(iOS)
+        if let sf = base.sf {
+            // iOS 15+ tab bars force the `.fill` variant on every item. `.environment(\.symbolVariants,
+            // .none)` is the documented override (NOT `.symbolVariant(.none)`, which only appends and
+            // leaves the inherited `.fill` in place). `.fill` for selected, `.none` (outline) otherwise.
+            Image(systemName: sf).environment(\.symbolVariants, selected ? .fill : .none)
+        } else {
+            Image(icon: base)
+        }
+        #else
+        Image(icon: selected ? fill : base).tabSized()
+        #endif
+    }
+
     var body: some View {
-        TabView(selection: $selection) {
+        TabView(selection: selectionBinding) {
             // No NavigationStack: Home presents only sheets/covers, and the switcher pill makes
             // a "Wallet" nav title redundant — the header IS the pill.
             WalletHomeScreen()
                 .tabItem {
                     Label { Text("Wallet", bundle: .module, comment: "Wallet tab") }
-                    icon: { Image(icon: selection == .wallet ? Icon.walletFill : Icon.wallet).tabSized() }
+                    icon: { tabBarIcon(Icon.wallet, Icon.walletFill, selected: selection == .wallet) }
                 }
                 .tag(MainTab.wallet)
 
             NavigationStack { ActivityScreen() }
                 .tabItem {
                     Label { Text("Activity", bundle: .module, comment: "Activity tab") }
-                    icon: { Image(icon: selection == .activity ? Icon.activityFill : Icon.activity).tabSized() }
+                    icon: { tabBarIcon(Icon.activity, Icon.activityFill, selected: selection == .activity) }
                 }
                 .tag(MainTab.activity)
+
+            if showNews {
+                NavigationStack { NewsScreen() }
+                    .tabItem {
+                        Label { Text("News", bundle: .module, comment: "News tab") }
+                        icon: { tabBarIcon(Icon.news, Icon.newsFill, selected: selection == .news) }
+                    }
+                    .tag(MainTab.news)
+            }
 
             NavigationStack { SettingsScreen() }
                 .tabItem {
                     Label { Text("Settings", bundle: .module, comment: "Settings tab") }
-                    icon: { Image(icon: selection == .settings ? Icon.settingsFill : Icon.settings).tabSized() }
+                    icon: { tabBarIcon(Icon.settings, Icon.settingsFill, selected: selection == .settings) }
                 }
                 .tag(MainTab.settings)
         }
