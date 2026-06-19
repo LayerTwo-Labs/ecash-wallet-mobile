@@ -63,9 +63,7 @@ import WalletService
 
     @Test func bitcoinIsPricedTestnetsAreNot() {
         #expect(PriceProviderRegistry.supportsPricing(.bitcoin))
-        #expect(!PriceProviderRegistry.supportsPricing(.testnet4))
         #expect(!PriceProviderRegistry.supportsPricing(.signet))
-        #expect(!PriceProviderRegistry.supportsPricing(.regtest))
     }
 
     // MARK: - PriceService conversion + gating

@@ -46,22 +46,6 @@ public enum NetworkRegistry {
                 defaultBackend: "ssl://electrum.blockstream.info:50002",
                 explorerTxTemplate: "https://mempool.space/tx/{txid}",
                 displayName: "Bitcoin")
-        case .testnet4:
-            // Public Testnet4 Electrum servers. Default = mempool.space (well-maintained,
-            // VERIFIED syncing via bdk's ElectrumClient on the host, 2026-06-11). Fallbacks for the
-            // planned server rotation / Settings override — ✓ = verified syncing, ✗ = failed when checked:
-            // ✓ ssl://blackie.c3-soft.com:57010 ✓ tcp://blackie.c3-soft.com:57009
-            // ✗ ssl://testnet4.qtornado.com:51012 (AllAttemptsErrored) ✗ :51011 (handshake)
-            // ✗ ssl://fulcrum.theuplink.net:60002 ✗ ssl://bitcoin.stagemole.eu:5010
-            // (untested, from Jake's list) ssl://13.212.194.61:60002, ssl://134.199.227.217:50002,
-            // ssl://v22019051929289916.bestsrv.de:60002
-            return NetworkParams(
-                coinType: Int32(1),
-                addressHRP: "tb",
-                unitLabel: "tBTC",
-                defaultBackend: "ssl://mempool.space:40002",
-                explorerTxTemplate: "https://mempool.space/testnet4/tx/{txid}",
-                displayName: "Testnet4")
         case .signet:
             // The one network we run right now (Jake, 2026-06). Drivechain signet Electrum.
             // Fallbacks (from the L2L BlueWallet fork) for later rotation/Settings:
@@ -75,14 +59,6 @@ public enum NetworkRegistry {
                 defaultBackend: "ssl://node.signet.drivechain.info:50002",
                 explorerTxTemplate: "https://explorer.signet.drivechain.info/tx/{txid}",
                 displayName: "L2L Signet")
-        case .regtest:
-            return NetworkParams(
-                coinType: Int32(1),
-                addressHRP: "bcrt",
-                unitLabel: "rBTC",
-                defaultBackend: "tcp://127.0.0.1:50000",
-                explorerTxTemplate: "http://127.0.0.1/tx/{txid}",
-                displayName: "Regtest")
         }
     }
 

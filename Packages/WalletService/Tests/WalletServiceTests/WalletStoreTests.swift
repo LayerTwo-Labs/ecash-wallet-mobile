@@ -9,7 +9,7 @@ import Foundation
 /// WalletStore semantics: in-memory store + the JSON-file store round-trip.
 final class WalletStoreTests: XCTestCase {
 
-    private func wallet(id: String, sort: Int, label: String = "W", network: WalletNetwork = .testnet4) -> ManagedWallet {
+    private func wallet(id: String, sort: Int, label: String = "W", network: WalletNetwork = .signet) -> ManagedWallet {
         ManagedWallet(id: id, label: label, network: network,
                       externalDescriptor: "wpkh(\(id)/0/*)", internalDescriptor: "wpkh(\(id)/1/*)",
                       isBackedUp: false, sortIndex: sort)

@@ -17,9 +17,7 @@ final class DescriptorsTests: XCTestCase {
     // is the documented workaround and reads fine here.
     func testAccountPathPerNetwork() {
         XCTAssertEqual(Descriptors.accountPath(for: WalletNetwork.bitcoin),  "m/84'/0'/0'")
-        XCTAssertEqual(Descriptors.accountPath(for: WalletNetwork.testnet4), "m/84'/1'/0'")
         XCTAssertEqual(Descriptors.accountPath(for: WalletNetwork.signet),   "m/84'/1'/0'")
-        XCTAssertEqual(Descriptors.accountPath(for: WalletNetwork.regtest),  "m/84'/1'/0'")
     }
 
     func testAccountPathWithAccountIndex() {
@@ -27,13 +25,13 @@ final class DescriptorsTests: XCTestCase {
     }
 
     func testKeychainPathExternalVsChange() {
-        XCTAssertEqual(Descriptors.keychainPath(for: WalletNetwork.testnet4, keychain: Descriptors.Keychain.external), "m/84'/1'/0'/0/*")
-        XCTAssertEqual(Descriptors.keychainPath(for: WalletNetwork.testnet4, keychain: Descriptors.Keychain.change),   "m/84'/1'/0'/1/*")
+        XCTAssertEqual(Descriptors.keychainPath(for: WalletNetwork.signet, keychain: Descriptors.Keychain.external), "m/84'/1'/0'/0/*")
+        XCTAssertEqual(Descriptors.keychainPath(for: WalletNetwork.signet, keychain: Descriptors.Keychain.change),   "m/84'/1'/0'/1/*")
     }
 
     func testMainnetAndTestnetPathsDiffer() {
         XCTAssertNotEqual(Descriptors.keychainPath(for: WalletNetwork.bitcoin, keychain: Descriptors.Keychain.external),
-                          Descriptors.keychainPath(for: WalletNetwork.testnet4, keychain: Descriptors.Keychain.external))
+                          Descriptors.keychainPath(for: WalletNetwork.signet, keychain: Descriptors.Keychain.external))
     }
 
     func testWpkhWrapper() {

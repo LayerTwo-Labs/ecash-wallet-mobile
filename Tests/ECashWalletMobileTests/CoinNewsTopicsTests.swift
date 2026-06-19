@@ -89,11 +89,11 @@ import WalletService
         let store = TopicSubscriptionStore(defaults: .standard)
         // Normalize (tests share .standard); use unique ids that won't collide with real data.
         store.unfollow("ts-aaaa", on: .signet)
-        store.unfollow("ts-aaaa", on: .testnet4)
+        store.unfollow("ts-aaaa", on: .bitcoin)
 
         store.follow("ts-aaaa", on: .signet)
         #expect(store.isFollowed("ts-aaaa", on: .signet))
-        #expect(!store.isFollowed("ts-aaaa", on: .testnet4))   // a different network is unaffected
+        #expect(!store.isFollowed("ts-aaaa", on: .bitcoin))   // a different network is unaffected
 
         let after = store.toggle("ts-aaaa", on: .signet)        // toggle off
         #expect(!after.contains("ts-aaaa"))
@@ -132,8 +132,6 @@ import WalletService
     @Test func coinNewsOffOnBitcoinOnly() {
         #expect(!CoinNewsAvailability.isAvailable(on: .bitcoin))
         #expect(CoinNewsAvailability.isAvailable(on: .signet))
-        #expect(CoinNewsAvailability.isAvailable(on: .testnet4))
-        #expect(CoinNewsAvailability.isAvailable(on: .regtest))
     }
 
     // MARK: - Per-network endpoint + empty fallback
@@ -141,7 +139,6 @@ import WalletService
     @Test func publicEndpointRegistryIsPerNetwork() {
         #expect(CoinNewsEndpointRegistry.publicEndpoint(for: .signet) != nil)   // hosted indexer
         #expect(CoinNewsEndpointRegistry.publicEndpoint(for: .bitcoin) == nil)  // none yet
-        #expect(CoinNewsEndpointRegistry.publicEndpoint(for: .testnet4) == nil)
     }
 
     @Test func emptyClientReturnsNothing() async throws {
@@ -185,6 +182,6 @@ import WalletService
         let store = pendingStore()
         store.addTopic(CoinNewsTopic(topicHex: "dddd", name: "Sig", retentionDays: 0), on: .signet)
         #expect(store.topics(on: .signet).count == 1)
-        #expect(store.topics(on: .testnet4).isEmpty)   // isolated per network
+        #expect(store.topics(on: .bitcoin).isEmpty)   // isolated per network
     }
 }

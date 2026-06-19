@@ -14,7 +14,7 @@ enum PriceProviderRegistry {
         switch network {
         case .bitcoin:
             return BitfinexPriceProvider()
-        case .testnet4, .signet, .regtest:
+        case .signet:
             return nil
         // Future: case .ecashMainnet: return <eCash price provider>
         }

@@ -20,14 +20,7 @@ struct NetworkChipStyle {
             // Real Bitcoin — the iconic Bitcoin orange (#F7931A).
             return NetworkChipStyle(background: Theme.Colors.netMainnet,
                                     foreground: Theme.Colors.netMainnetText)
-        case .testnet4:
-            // TODO: distinct per-testnet colors once chosen; violet placeholder for now.
-            return NetworkChipStyle(background: Theme.Colors.netTestnet,
-                                    foreground: Theme.Colors.netTestnetText)
         case .signet:
-            return NetworkChipStyle(background: Theme.Colors.netTestnet,
-                                    foreground: Theme.Colors.netTestnetText)
-        case .regtest:
             return NetworkChipStyle(background: Theme.Colors.netTestnet,
                                     foreground: Theme.Colors.netTestnetText)
         // Future: case .ecashMainnet: netEcash; case .ecashTestnet: netEcashTest

@@ -89,7 +89,7 @@ final class WalletErrorTests: XCTestCase {
     func testAllUserMessagesNonEmptyAndContainNoKeyMarkers() {
         let cases: [WalletError] = [
             .notImplemented, .invalidMnemonic, .invalidDescriptor, .invalidAddress,
-            .networkMismatch(expected: .testnet4), .insufficientFunds, .dustAmount,
+            .networkMismatch(expected: .signet), .insufficientFunds, .dustAmount,
             .noSpendableUtxos, .syncFailed, .broadcastFailed, .signingFailed,
             .persistenceFailed, .engine("Something went wrong.")
         ]

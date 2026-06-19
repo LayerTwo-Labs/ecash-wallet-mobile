@@ -14,11 +14,11 @@ final class WalletManagerTests: XCTestCase {
         let ws = InMemoryWalletStore()
         let manager = WalletManager(keyStore: ks, walletStore: ws, factory: MockWalletEngineFactory())
 
-        let wallet = try manager.createWallet(label: "Savings", network: .testnet4)
+        let wallet = try manager.createWallet(label: "Savings", network: .signet)
 
         XCTAssertEqual(manager.wallets.count, 1)
         XCTAssertEqual(manager.selectedWalletId, wallet.id)
-        XCTAssertEqual(wallet.network, WalletNetwork.testnet4)
+        XCTAssertEqual(wallet.network, WalletNetwork.signet)
         XCTAssertFalse(wallet.isBackedUp)
         XCTAssertNotNil(try ks.loadMnemonic(walletId: wallet.id))   // secret stored
         XCTAssertEqual(try ws.allWallets().count, 1)                // metadata stored
@@ -29,7 +29,7 @@ final class WalletManagerTests: XCTestCase {
         let manager = WalletManager(keyStore: ks, walletStore: InMemoryWalletStore(), factory: MockWalletEngineFactory())
         let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
 
-        let wallet = try manager.importWallet(label: "Imported", network: .testnet4, mnemonic: mnemonic)
+        let wallet = try manager.importWallet(label: "Imported", network: .signet, mnemonic: mnemonic)
 
         XCTAssertEqual(try ks.loadMnemonic(walletId: wallet.id), mnemonic)
         XCTAssertEqual(manager.wallets.count, 1)
@@ -42,7 +42,7 @@ final class WalletManagerTests: XCTestCase {
         let manager = WalletManager(keyStore: ks, walletStore: InMemoryWalletStore(), factory: factory)
 
         var threw = false
-        do { _ = try manager.importWallet(label: "X", network: .testnet4, mnemonic: "bad checksum") }
+        do { _ = try manager.importWallet(label: "X", network: .signet, mnemonic: "bad checksum") }
         catch { threw = true }
 
         XCTAssertTrue(threw)
@@ -54,7 +54,7 @@ final class WalletManagerTests: XCTestCase {
         let ws = InMemoryWalletStore()
         let factory = MockWalletEngineFactory()
         let manager = WalletManager(keyStore: ks, walletStore: ws, factory: factory)
-        let a = try manager.createWallet(label: "A", network: .testnet4)
+        let a = try manager.createWallet(label: "A", network: .signet)
         let b = try manager.createWallet(label: "B", network: .signet)
         manager.select(id: a.id)
 
@@ -72,14 +72,14 @@ final class WalletManagerTests: XCTestCase {
 
     func testRename() throws {
         let manager = WalletManager(keyStore: InMemoryKeyStore(), walletStore: InMemoryWalletStore(), factory: MockWalletEngineFactory())
-        let wallet = try manager.createWallet(label: "Old", network: .testnet4)
+        let wallet = try manager.createWallet(label: "Old", network: .signet)
         try manager.renameWallet(id: wallet.id, to: "New")
         XCTAssertEqual(manager.wallets.first?.label, "New")
     }
 
     func testSetBackedUp() throws {
         let manager = WalletManager(keyStore: InMemoryKeyStore(), walletStore: InMemoryWalletStore(), factory: MockWalletEngineFactory())
-        let wallet = try manager.createWallet(label: "A", network: .testnet4)
+        let wallet = try manager.createWallet(label: "A", network: .signet)
         XCTAssertFalse(manager.wallets.first?.isBackedUp ?? true)
         try manager.setBackedUp(id: wallet.id)
         XCTAssertTrue(manager.wallets.first?.isBackedUp ?? false)
@@ -89,7 +89,7 @@ final class WalletManagerTests: XCTestCase {
         let ks = InMemoryKeyStore()
         let ws = InMemoryWalletStore()
         let first = WalletManager(keyStore: ks, walletStore: ws, factory: MockWalletEngineFactory())
-        _ = try first.createWallet(label: "A", network: .testnet4)
+        _ = try first.createWallet(label: "A", network: .signet)
         _ = try first.createWallet(label: "B", network: .signet)
 
         // A fresh manager over the same stores loads what was persisted.

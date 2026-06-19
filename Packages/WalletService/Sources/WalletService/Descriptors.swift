@@ -32,7 +32,7 @@ enum Descriptors {
         }
     }
 
-    /// The account-level derivation path for a network, e.g. "m/84'/1'/0'" on Testnet4.
+    /// The account-level derivation path for a network, e.g. "m/84'/1'/0'" on L2L Signet.
     static func accountPath(for network: WalletNetwork, account: Int32 = 0) -> String {
         let coinType = NetworkRegistry.params(for: network).coinType
         return "m/84'/\(coinType)'/\(account)'"

@@ -15,7 +15,7 @@ A native mobile Bitcoin wallet — **eCash.com Wallet** — for **eCash**, the L
 **v1 scope (this milestone):** the fundamentals, **multi-wallet and multi-network from day one**.
 
 - **Manage multiple wallets** — add, switch, rename, remove; **each wallet is its own seed** (its own mnemonic), independent (§4 / `docs/wallet-and-network-model.md`).
-- **Network is chosen at creation** (new wallets default to **L2L Signet**), then switchable among the testnet-class set. Bundled networks: **Bitcoin mainnet** (coin-type `0'`, real money, creatable), **Testnet4**, **L2L Signet**, **regtest** (all testnet-class, coin-type `1'`, shared keys), plus **eCash-testnet/signet/mainnet** added later (design the network layer to absorb them now — see §4).
+- **Network is chosen at creation** (new wallets default to **L2L Signet**), then switchable among the testnet-class set. Bundled networks (v1): **Bitcoin mainnet** (coin-type `0'`, real money, creatable) and **L2L Signet** (coin-type `1'`), plus **eCash-testnet/signet/mainnet** added later (design the network layer to absorb them now — see §4). (Testnet4 + regtest were **removed 2026-06-19** to focus v1 on Bitcoin + L2L Signet; re-add as `NetworkRegistry`/enum entries if ever needed.)
 - Create wallet (generate seed → pick network — **defaults to L2L Signet**, never auto-mainnet — → Home)
 - Import wallet (restore from seed / descriptor; same network picker)
 - Backup wallet (reveal + verify seed) — per wallet
@@ -120,8 +120,8 @@ ecash-wallet-mobile/
 
 The app holds **N wallets, each its own seed**; **network is a switchable view, not a pin** (REVISED 2026-06-12 — `docs/wallet-and-network-model.md`). Don't build a single-wallet app and retrofit — build the manager first.
 
-- **`WalletNetwork`** (enum): `.bitcoin`, `.testnet4`, and future `.ecashMainnet`, `.ecashTestnet(…)`. Each case resolves through `NetworkRegistry` to: BDK chain params, **derivation coin-type** (`0'` mainnet, `1'` for all test networks), default Electrum/Esplora endpoint, explorer URL template, address HRP, and unit/display label. **Mark it non-exhaustive in spirit** — adding eCash later is a registry entry + params, not a refactor.
-  - BDK support: **Testnet4** and **Signet** are first-class (`bdk_wallet`; rust-bitcoin models testnet4 as `Network::Testnet(.v4)`); Regtest for dev. **eCash needs NO custom `Params`/forked binding** (resolved — `docs/key-derivation.md`): eCash is byte-identical to Bitcoin, so eCash-testnet/signet map to `Network.testnet4`/`.signet` and eCash-mainnet to `Network.bitcoin` — they differ only by backend. `WalletNetwork` + `NetworkRegistry` remain the seam.
+- **`WalletNetwork`** (enum): `.bitcoin`, `.signet`, and future `.ecashMainnet`, `.ecashTestnet(…)`. Each case resolves through `NetworkRegistry` to: BDK chain params, **derivation coin-type** (`0'` mainnet, `1'` for test networks), default Electrum/Esplora endpoint, explorer URL template, address HRP, and unit/display label. **Mark it non-exhaustive in spirit** — adding eCash later is a registry entry + params, not a refactor.
+  - BDK support: **Signet** is first-class (`bdk_wallet`). **eCash needs NO custom `Params`/forked binding** (resolved — `docs/key-derivation.md`): eCash is byte-identical to Bitcoin, so eCash-signet maps to `Network.signet` and eCash-mainnet to `Network.bitcoin` — they differ only by backend. `WalletNetwork` + `NetworkRegistry` remain the seam.
 - **`ManagedWallet`** (value type): `id` (stable UUID/string), `label`, `network: WalletNetwork` (the **currently-selected** view — switchable, not an immutable pin), public descriptors (the shared testnet coin-type `1'` set), `isBackedUp`, `createdAt`, sort index. No private keys in this struct.
 - **`WalletManager`**: owns the ordered list of `ManagedWallet` + the **selected** wallet; handles add/import/rename/remove/reorder/select; vends a `WalletEngine` per **(wallet × network)**. The selected network passes to BDK at construction (`check_network` enforced on load); each (wallet × network) keeps isolated balance/history.
 - **Storage namespacing (Golden Rule §5):** mnemonics in Keychain keyed by `walletId`; the JSON `FileWalletStore` holds the public wallet list; BDK chain data is per (wallet × network). **Remove = purge** every keyed artifact.
@@ -213,7 +213,7 @@ The iOS app stays pure SwiftUI, so it's always ejectable. If Skip ever becomes a
 ## 6. BDK usage rules
 
 - **Descriptors only.** Build wallets from output descriptors. Default account: **BIP84 native segwit (`wpkh`)** with **network-aware coin-type** — `m/84'/0'/0'` on mainnet, `m/84'/1'/0'` on every test network — external `…/0/*`, internal `…/1/*`. Templates live in `Descriptors.swift` and take a `WalletNetwork`.
-- **Network is a switchable view, resolved via `NetworkRegistry`** (see §4 / `docs/wallet-and-network-model.md`). A wallet's selected network passes to BDK at construction (`check_network` enforced on load), but the user can switch among the testnet-class networks (Testnet4 / eCash-testnet / eCash-signet — shared coin-type `1'`, so one descriptor set serves all three). Each network has its own backend + isolated balance/history. **eCash mainnet** (coin-type `0'`) is a later, deliberate addition. Never hardcode a network outside the registry.
+- **Network is a switchable view, resolved via `NetworkRegistry`** (see §4 / `docs/wallet-and-network-model.md`). A wallet's selected network passes to BDK at construction (`check_network` enforced on load), but the user can switch among the testnet-class networks (L2L Signet / future eCash-testnet / eCash-signet — shared coin-type `1'`, so one descriptor set serves all). Each network has its own backend + isolated balance/history. **eCash mainnet** (coin-type `0'`) is a later, deliberate addition. Never hardcode a network outside the registry.
 - **Backend per network.** Each `WalletNetwork` has a default backend in the registry. **Implemented (Settings → Network, v1 SHIPPED 2026-06-14):** user-selectable **Electrum or Esplora** custom endpoint per network + Test-connection probe, plus a global **SOCKS5/Tor** proxy; overrides persist in UserDefaults and evict cached engines on change. CBF/own-node and embedded Tor are v2. The BDK backend analysis (no bitcoind-RPC in the binding; Electrum/Esplora/CBF only) is in `docs/backends-and-endpoints.md`. Keep the client swappable; overrides are scoped per network.
 - **Sync:** explicit, user-visible, **per wallet**. Show sync state (idle / syncing / error). Persist each wallet's BDK chain data locally (SQLite, namespaced by `walletId`) so cold start is fast. Switching the selected wallet shows that wallet's cached state immediately, then refreshes. **Scan model (LEARNED 2026-06-12):** full scan (gap limit 20) ONLY on a wallet's first-ever sync; every later sync uses `startSyncWithRevealedSpks` — a full scan's gap limit SKIPS funds at high revealed indices (>20 consecutive unused below them), which silently hid a real incoming tx. Relatedly, the Receive screen shows the next **unused** address (`nextUnusedAddress`) and only advances on an explicit "New address" tap — advancing per screen-open is what inflated the index space past the gap.
 - **Transactions:** build via `TxBuilder` → `Psbt` → `sign` → `broadcast`. **RBF is signaled by default in BDK** — keep it on and reflect it in the UI. **After a successful broadcast, fold the tx into the wallet graph** (`wallet.applyUnconfirmedTxs([UnconfirmedTx(tx, lastSeen: now)])`) before persisting — otherwise a second send/publish before the next sync reselects the just-spent UTXOs (change not yet known) and the backend rejects it as a double-spend. Done once in `WalletEngine.applyBroadcast`, called by both `send` and `publishData` (so CoinNews vote/comment/post are covered too). The spend policy already treats our own unconfirmed change as spendable.
@@ -388,18 +388,18 @@ Under Robolectric, **`#if os(Android)` is `false`** (it's the host JVM), so our 
 
 - **Amount math:** sats `UInt64` arithmetic, sat↔eCash-unit formatting round-trips, no float drift, max-spend calculation.
 - **BIP21 parsing:** address-only, amount, label, malformed URIs, casing.
-- **Descriptor templates:** BIP84 derivation-path strings are exactly correct **per network** — coin-type `0'` on mainnet, `1'` on Testnet4/signet/regtest (assert against fixed vectors).
+- **Descriptor templates:** BIP84 derivation-path strings are exactly correct **per network** — coin-type `0'` on mainnet, `1'` on L2L Signet (assert against fixed vectors).
 - **NetworkRegistry:** each `WalletNetwork` resolves to the right coin-type, address HRP, unit label, and default endpoint; mainnet vs testnet never collide.
 - **Error mapping:** every `BDK error → WalletError → user string` path, with an explicit assertion that **no secret material** (mnemonic, xprv, descriptor-with-keys) appears in any message.
 - **View-model state machines:** send flow (idle→entering→reviewing→broadcasting→done/error), sync states, backup-verify logic, **wallet switching** (selected-wallet changes re-root state) — driven through the mock engine.
 
 **Integration (real BDK, iOS sim + Android emulator):**
 
-- **Address derivation vectors per network:** known test mnemonic → known first external/change addresses on **mainnet and Testnet4** (different addresses; assert they don't match).
+- **Address derivation vectors per network:** known test mnemonic → known first external/change addresses on **mainnet and L2L Signet** (different addresses; assert they don't match).
 - **Mnemonic validation:** valid vs. bad-checksum inputs via BDK.
 - **`check_network` enforcement:** loading a wallet against the wrong network fails as expected.
 - **Multi-wallet isolation:** two wallets on different networks coexist; balances/addresses/UTXOs never leak across them; **remove purges** the removed wallet's Keychain entry + JSON metadata + BDK chain store and leaves the other intact.
-- **Transaction building** against signet/regtest: correct inputs/outputs/change, fee applied, **RBF signaled**, plus failure cases — insufficient funds, dust, no-UTXO.
+- **Transaction building** against L2L Signet: correct inputs/outputs/change, fee applied, **RBF signaled**, plus failure cases — insufficient funds, dust, no-UTXO.
 - **Persistence round-trip:** create N wallets → persist (BDK chain store + JSON `FileWalletStore` + Keychain, namespaced by `walletId`) → cold-load → each wallet's balance/addresses/network intact.
 
 UI-level flows come later via **`skip-ui-automation`** (`skip app launch` + Maestro across both platforms); not required for the v1 logic milestone but wire up at least one smoke flow (create → receive → see address) before release.
@@ -424,9 +424,17 @@ UI-level flows come later via **`skip-ui-automation`** (`skip app launch` + Maes
 ## 13. Build & run
 
 ```bash
-# iOS: open in Xcode, run the Darwin app target.
+# iOS: open in Xcode, run the Darwin app target (or scripts/run-ios-sim.sh / run-ios-device.sh).
 # Android: Skip generates the Gradle project; run from Android Studio or:
 skip android run        # confirm against current Skip CLI
+
+# FAST Android dev loop (scripts/run-android.sh): build + install + launch on connected devices.
+# ~7min → ~2min clean / ~1min warm by passing `--no-ios --arch aarch64`: `skip export` otherwise
+# ALSO archives the iOS .ipa AND compiles native Swift for armv7 + x86_64 — none of which a Saga /
+# arm64 install needs. Gradle caching+parallel are enabled in Android/gradle.properties.
+#   scripts/run-android.sh            # release (fast runtime; preferred dev loop now it's quick)
+#   scripts/run-android.sh --debug    # skips R8; faster build but runtime is laggy (Swift -Onone)
+#   ARCH=x86_64 scripts/run-android.sh   # Intel emulator;  ARCH=all = every ABI (real Play release)
 
 # Tests (see §11):
 swift test                              # fast: transpiled JUnit on host JVM via Robolectric (both platforms)
@@ -434,7 +442,7 @@ ANDROID_SERIAL=emulator-5554 swift test # instrumented on a real emulator (neede
 # Verify the BDK seam on BOTH a sim and an emulator before merging anything touching WalletService.
 ```
 
-**Definition of done for any WalletService / view-model change:** tests written in the same PR; `swift test` (Robolectric) green; and for anything crossing the BDK seam, the real-BDK integration suite passes on an iOS simulator *and* an Android emulator against a test network (Testnet4 / regtest, and L2L signet once eCash params land).
+**Definition of done for any WalletService / view-model change:** tests written in the same PR; `swift test` (Robolectric) green; and for anything crossing the BDK seam, the real-BDK integration suite passes on an iOS simulator *and* an Android emulator against a test network (L2L Signet).
 
 ---
 
@@ -444,7 +452,7 @@ ANDROID_SERIAL=emulator-5554 swift test # instrumented on a real emulator (neede
 2. Vendor `ecash-logo.svg` into the repo and produce the Android vector-drawable variant (see §8 Brand assets).
 3. **Type system — ✅ DONE:** two fonts, **Space Grotesk** (display/headings) + **JetBrains Mono** (body/labels/mono); IBM Plex dropped. CLAUDE.md + `DESIGN.md` agree. (Still confirm the actual ecash.com font someday.)
 4. **Skip-safe `DESIGN.md` revision — ✅ DONE (2026-06-14):** rewritten to the as-built system (SwiftUI-native colors, Material Symbols, two fonts, real amber accent, every-network-chipped, stock chrome).
-5. Default backends **per network** for `NetworkRegistry`: Testnet4 Electrum/Esplora endpoint, Bitcoin mainnet endpoint, and L2L signet / eCash endpoints for the fork.
-6. **eCash network representation in BDK** — eCash is a separate chain with no rust-bitcoin `Network` variant. Decide how to model `.ecashMainnet` / `.ecashTestnet`: custom rust-bitcoin `Params`, or a forked `bdk-ffi` binding. Blocks the eCash entries in `NetworkRegistry`. (Testnet4 + Bitcoin mainnet are already first-class in BDK — no action.)
+5. Default backends **per network** for `NetworkRegistry`: Bitcoin mainnet endpoint, and L2L Signet / eCash endpoints for the fork.
+6. **eCash network representation in BDK** — eCash is a separate chain with no rust-bitcoin `Network` variant. Decide how to model `.ecashMainnet` / `.ecashTestnet`: custom rust-bitcoin `Params`, or a forked `bdk-ffi` binding. Blocks the eCash entries in `NetworkRegistry`. (Bitcoin mainnet + Signet are already first-class in BDK — no action.)
 7. eCash chain params themselves (address HRP / network magic / unit naming) once the fork spec finalizes.
 8. Min OS floors **resolved (2026-06)**: **iOS 26** (`.iOS("26.0")` + `IPHONEOS_DEPLOYMENT_TARGET=26.0`; ≈75–86% of active iPhones depending on measure, climbing — chosen to commit to the DESIGN.md iOS-26 design) and **Android API 28** (Skip Fuse floor, emitted `minSdkVersion=28`, ≈93.5% reach). macOS host stays `.v14`. Note: `.v26` is unavailable at `swift-tools-version: 6.1`, so the manifest uses the string form `.iOS("26.0")`.

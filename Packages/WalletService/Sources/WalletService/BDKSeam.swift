@@ -35,16 +35,12 @@ public enum BDKSeam {
         #if SKIP
         switch network {
         case .bitcoin:  return Network.BITCOIN
-        case .testnet4: return Network.TESTNET4
         case .signet:   return Network.SIGNET
-        case .regtest:  return Network.REGTEST
         }
         #else
         switch network {
         case .bitcoin:  return Network.bitcoin
-        case .testnet4: return Network.testnet4
         case .signet:   return Network.signet
-        case .regtest:  return Network.regtest
         }
         #endif
     }

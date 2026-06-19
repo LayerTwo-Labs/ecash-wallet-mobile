@@ -105,10 +105,8 @@ public struct FeeRate: Equatable, Hashable, Sendable {
 /// for all chain params, coin-type, backend, explorer, address HRP, and unit label.
 public enum WalletNetwork: String, Equatable, Hashable, Sendable, CaseIterable {
     case bitcoin
-    case testnet4
-    /// Dev-only networks; first-class in BDK.
+    /// L2L dev network; first-class in BDK.
     case signet
-    case regtest
     // Future: eCash is a separate chain with no rust-bitcoin variant.
     // case ecashMainnet
     // case ecashTestnet

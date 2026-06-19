@@ -76,7 +76,7 @@ final class CoinNewsMessageTests: XCTestCase {
         XCTAssertEqual(k1.count, 32)
         XCTAssertEqual(k1, k2)                                              // deterministic
         // Network-independent (same seed → same identity regardless of the wallet's network view).
-        XCTAssertEqual(k1, try CoinNewsIdentity.privateKey(mnemonicPhrase: mnemonic, network: .testnet4))
+        XCTAssertEqual(k1, try CoinNewsIdentity.privateKey(mnemonicPhrase: mnemonic, network: .signet))
         // Produces a usable BIP-340 key: derive author xpk, sign a vote, verify.
         let xpk = try CoinNewsCrypto.xonlyPublicKey(privateKey: k1)
         XCTAssertEqual(xpk.count, 32)

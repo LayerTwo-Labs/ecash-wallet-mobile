@@ -14,9 +14,9 @@ SwiftUI codebase ships as a native SwiftUI app on iOS and native Jetpack Compose
 [Skip](https://skip.dev). All key material, signing, and consensus logic is handled by
 [BDK](https://bitcoindevkit.org) (`bdk-swift` / `bdk-android`).
 
-Multi-wallet and multi-network from day one. v1 develops on the testnet-class networks
-(**Signet / Testnet4 / regtest**); eCash mainnet and L2L test networks slot in as
-`NetworkRegistry` entries later.
+Multi-wallet and multi-network from day one. v1 bundles **Bitcoin mainnet** (`0'`) and
+**L2L Signet** (`1'`); eCash mainnet and L2L test networks slot in as `NetworkRegistry` entries
+later.
 
 ## Stack
 
@@ -106,7 +106,7 @@ skip export --debug
 
 # Real-BDK integration on a device runtime:
 ANDROID_SERIAL=emulator-5554 swift test          # Android instrumented
-WALLETSERVICE_LIVE=1 swift test --filter testLiveTestnet4Sync   # opt-in live Testnet4
+WALLETSERVICE_LIVE=1 swift test --filter testLiveSignetSync   # opt-in live L2L Signet
 ```
 
 `swift build` only checks Apple + transpilation; **`skip export --debug` is the real Android check.**

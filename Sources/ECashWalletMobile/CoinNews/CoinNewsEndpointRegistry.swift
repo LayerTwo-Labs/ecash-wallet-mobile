@@ -15,7 +15,7 @@ enum CoinNewsEndpointRegistry {
             // L2L drivechain signet indexer (galaxoidlabs), live 2026-06.
             guard let url = URL(string: "https://coinnews.signet.dc.galaxoidlabs.com") else { return nil }
             return CoinNewsEndpoint(baseURL: url)
-        case .bitcoin, .testnet4, .regtest:
+        case .bitcoin:
             // No public indexer yet.
             return nil
         }

@@ -15,7 +15,7 @@ enum CoinNewsAvailability {
     static func isAvailable(on network: WalletNetwork) -> Bool {
         switch network {
         case .bitcoin: return false          // no CoinNews on Bitcoin mainnet
-        case .testnet4, .signet, .regtest: return true
+        case .signet: return true
         }
     }
 }

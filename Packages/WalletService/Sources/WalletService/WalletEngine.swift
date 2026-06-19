@@ -86,7 +86,7 @@ public protocol WalletEngineProtocol: AnyObject {
 /// On real Android this runs as transpiled Kotlin against bdk-android.
 ///
 /// `balance`/`nextReceiveAddress`/`transactions`/`listUtxos` are implemented + host-tested.
-/// `sync`/`send` are implemented but await device verification against live Testnet4 / a funded
+/// `sync`/`send` are implemented but await device verification against live L2L Signet / a funded
 /// wallet (Golden Rule §8 — they fail loud, never silent).
 ///
 /// `public` (cross-file Kotlin resolution) + `// SKIP @nobridge` (BDK-typed init/properties must
@@ -320,7 +320,7 @@ public final class WalletEngine: WalletEngineProtocol {
     }
 
     /// Build → sign → broadcast. The flow is implemented end-to-end, but it has NOT been
-    /// verified against a funded wallet on live Testnet4 — that requires device/emulator testing
+    /// verified against a funded wallet on live L2L Signet — that requires device/emulator testing
     /// with real coins. TODO(M2-device): confirm fee/change/RBF on a real send.
     public func send(to address: String, amount: Amount, feeRate: FeeRate) throws -> WalletTx {
         // 1. Validate the destination address against THIS wallet's network (Golden Rule §6/§7).

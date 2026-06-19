@@ -3,11 +3,17 @@
 > How the app is built, signed, and shipped to the **App Store / TestFlight** (iOS) and **Google
 > Play** (Android), via fastlane. Secrets are gitignored and supplied locally (templates committed).
 >
-> **Status (2026-06-15):** iOS is **connected** (App Store Connect API key in place, auth + app
-> record verified). Android Play Store is **not set up yet** — §2 lists exactly what's needed.
+> **Status (2026-06-19):** Version **0.1.0** (build 1) — nothing shipped yet. iOS is **connected**
+> (App Store Connect API key in place, auth + app record verified) → push via `fastlane beta`
+> (TestFlight). Android ships as a **pass-around APK** (arm64) for now (§2a); Google Play upload via
+> fastlane is documented (§2b) but not wired in this checkout (no service-account JSON / upload keystore).
 
 All fastlane commands run from the platform subdir: `cd Darwin` (iOS) / `cd Android` (Android).
 Bundle id / package = `com.layertwolabs.mobile.ecashwallet` (from `Skip.env`, shared by both).
+
+**Version** is centralized in `Skip.env` — `MARKETING_VERSION` (semantic, currently `0.1.0`) +
+`CURRENT_PROJECT_VERSION` (build number, currently `1`), shared by iOS and Android. **Bump
+`CURRENT_PROJECT_VERSION` before each repeat TestFlight/Play upload** (build numbers must be unique).
 
 ---
 
@@ -41,11 +47,27 @@ fresh-app state).
 
 ---
 
-## 2. Android — Google Play ⬜ NOT set up yet
+## 2. Android — distribution
 
+### 2a. Pass-around APK (current method) ✅
+Share a signed release **APK** with testers — no Play needed:
+```
+scripts/build-apk.sh            # arm64 → .build/dist/eCashWallet-<version>-aarch64.apk
+ARCH=all scripts/build-apk.sh   # every ABI (much bigger; only for x86/armv7 devices)
+```
+- **arm64 (aarch64) by default** — covers ~all modern phones. The Swift runtime makes each ABI
+  ~170 MB, so we don't ship `all` unless needed.
+- **Signing:** falls back to the **debug keystore** (no `keystore.properties`) → sideload-installable
+  (testers enable "install unknown apps"), **not** Play-grade. Set up an upload keystore (§2b.3) only
+  when going to Play. (Nothing's published, so switching to a proper key later is still safe.)
+- Under the hood: `skip export --release --no-ios --arch aarch64` — skips the iOS archive and the
+  armv7/x86_64 native compiles (~7 min → ~1–2 min; flags in `scripts/run-android.sh` +
+  `Android/gradle.properties`). `scripts/run-android.sh` is the same build but installs to a device.
+
+### 2b. Google Play (optional, not wired) ⬜
 The fastlane config exists (`Android/fastlane/` — `assemble` builds an AAB via gradle `bundleRelease`;
-`release` runs `upload_to_play_store`), but the **credentials + signing + Play app don't exist yet**.
-To connect it, you need:
+`release` runs `upload_to_play_store`), but the **credentials + signing aren't wired** in this
+checkout (and its AAB output path is the skip-template default, not our build). To connect it:
 
 1. **Google Play Console app.** Create the app in Play Console with package
    `com.layertwolabs.mobile.ecashwallet`. **First upload must be done manually** through the Play

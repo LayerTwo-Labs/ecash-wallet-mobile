@@ -34,7 +34,7 @@ public final class MockWalletEngine: WalletEngineProtocol {
     public private(set) var lastSendFeeRate: FeeRate?
     public private(set) var lastPublishedData: Data?
 
-    public init(network: WalletNetwork = .testnet4,
+    public init(network: WalletNetwork = .signet,
                 balance: Amount = .zero,
                 address: AddressInfo = AddressInfo(address: "tb1qmockreceiveaddress", index: 0),
                 transactions: [WalletTx] = [],

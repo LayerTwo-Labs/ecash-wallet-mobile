@@ -10,8 +10,8 @@ import XCTest
 final class MockWalletEngineTests: XCTestCase {
 
     func testReturnsFixtures() throws {
-        let mock = MockWalletEngine(network: .testnet4, balance: Amount(sats: Int64(42)))
-        XCTAssertEqual(mock.network, WalletNetwork.testnet4)
+        let mock = MockWalletEngine(network: .signet, balance: Amount(sats: Int64(42)))
+        XCTAssertEqual(mock.network, WalletNetwork.signet)
         XCTAssertEqual(try mock.balance().sats, Int64(42))
         XCTAssertEqual(try mock.nextReceiveAddress().address, "tb1qmockreceiveaddress")
     }

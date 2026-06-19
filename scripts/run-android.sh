@@ -6,6 +6,12 @@
 # The release `signingConfig` falls back to the debug keystore when there's no keystore.properties,
 # so the release APK installs without Play signing set up.
 #
+# DEV-SPEED: this script builds for ONE architecture (aarch64 = Saga / arm64 emulators) and SKIPS
+# the iOS leg — `skip export` otherwise also archives the iOS .ipa AND compiles native Swift for
+# armv7 + x86_64, none of which a Saga install needs. For a real Play release (all ABIs), build with
+# a separate full `skip export --release` (no --arch / with --android). Override the arch with
+# ARCH=... (e.g. ARCH=x86_64 for an Intel emulator, ARCH=all for every ABI).
+#
 # Usage:  scripts/run-android.sh [--release|--debug]   (default: --release)
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -15,9 +21,10 @@ command -v adb >/dev/null 2>&1 && ADB="$(command -v adb)"
 PKG="com.layertwolabs.mobile.ecashwallet"
 CONFIG="${1:---release}"
 [ "$CONFIG" = "--release" ] || [ "$CONFIG" = "--debug" ] || { echo "usage: $0 [--release|--debug]" >&2; exit 1; }
+ARCH="${ARCH:-aarch64}"   # Saga is arm64-v8a; one ABI instead of three
 
-echo "▸ Building Android ($CONFIG)…"
-skip export "$CONFIG"
+echo "▸ Building Android ($CONFIG, arch=$ARCH, no iOS)…"
+skip export "$CONFIG" --no-ios --arch "$ARCH"
 
 # The APK is named per build type: -release.apk (minified, signed with debug key as fallback) or
 # -debug.apk.

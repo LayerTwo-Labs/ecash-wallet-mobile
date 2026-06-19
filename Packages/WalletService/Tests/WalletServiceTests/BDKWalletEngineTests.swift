@@ -9,13 +9,13 @@
 //
 // What these lock down:
 // • BIP84 derivation matches the PUBLISHED BIP84 spec vectors (mainnet) — world ground truth.
-// • Testnet4 derivation (coin-type 1') is pinned + provably distinct from mainnet (coin-type 0').
+// • L2L Signet derivation (coin-type 1') is pinned + provably distinct from mainnet (coin-type 0').
 // • `check_network`: a wallet rejects an address from another network (Golden Rule §4/§6).
 // • Persistence round-trip: BDK's own SQLite store survives a cold reload (load-vs-create path).
 // • Determinism + mnemonic round-trip + invalid-mnemonic rejection.
 //
 // NOTE: mainnet (`.bitcoin`) is used here ONLY as the authoritative published derivation vector —
-// the product ships Testnet4 + eCash, not Bitcoin mainnet (per project scope). Asserting against the
+// the product ships L2L Signet + eCash, not Bitcoin mainnet (per project scope). Asserting against the
 // BIP84 spec is the least-contrived way to prove our derivation is correct, not a scope change.
 //
 // SkipUnit lacks `XCTAssertThrowsError`, and this file still TRANSPILES (even though it XCTSkips at
@@ -36,9 +36,9 @@ final class BDKWalletEngineTests: XCTestCase {
     private static let mainnetExternal0 = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
     private static let mainnetExternal1 = "bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g"
 
-    // Testnet4 receiving addresses (m/84'/1'/0'/0/{0,1}) — pinned regression vectors.
-    private static let testnet4External0 = "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl"
-    private static let testnet4External1 = "tb1qd7spv5q28348xl4myc8zmh983w5jx32cjhkn97"
+    // L2L Signet receiving addresses (m/84'/1'/0'/0/{0,1}) — pinned regression vectors.
+    private static let signetExternal0 = "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl"
+    private static let signetExternal1 = "tb1qd7spv5q28348xl4myc8zmh983w5jx32cjhkn97"
 
     // MARK: - Helpers
 
@@ -82,15 +82,15 @@ final class BDKWalletEngineTests: XCTestCase {
         #endif
     }
 
-    /// Testnet4 derivation (coin-type 1') is pinned and yields `tb1` SegWit addresses.
-    func testTestnet4Bip84DerivationVector() throws {
+    /// L2L Signet derivation (coin-type 1') is pinned and yields `tb1` SegWit addresses.
+    func testSignetBip84DerivationVector() throws {
         #if SKIP
         throw XCTSkip("real BDK — host only")
         #else
-        let (ext0, ext1) = try firstTwoExternalAddresses(.testnet4)
-        XCTAssertEqual(ext0, Self.testnet4External0)
-        XCTAssertEqual(ext1, Self.testnet4External1)
-        XCTAssertTrue(ext0.hasPrefix("tb1"), "Testnet4 must use the tb1 SegWit HRP")
+        let (ext0, ext1) = try firstTwoExternalAddresses(.signet)
+        XCTAssertEqual(ext0, Self.signetExternal0)
+        XCTAssertEqual(ext1, Self.signetExternal1)
+        XCTAssertTrue(ext0.hasPrefix("tb1"), "L2L Signet must use the tb1 SegWit HRP")
         #endif
     }
 
@@ -100,12 +100,12 @@ final class BDKWalletEngineTests: XCTestCase {
         throw XCTSkip("real BDK — host only")
         #else
         let (mainnet0, _) = try firstTwoExternalAddresses(.bitcoin)
-        let (testnet0, _) = try firstTwoExternalAddresses(.testnet4)
+        let (testnet0, _) = try firstTwoExternalAddresses(.signet)
         XCTAssertNotEqual(mainnet0, testnet0)
         #endif
     }
 
-    /// Descriptors embed the network-correct BIP84 coin-type: 0' on mainnet, 1' on testnet4.
+    /// Descriptors embed the network-correct BIP84 coin-type: 0' on mainnet, 1' on signet.
     func testDescriptorsCarryNetworkCorrectCoinType() throws {
         #if SKIP
         throw XCTSkip("real BDK — host only")
@@ -117,15 +117,15 @@ final class BDKWalletEngineTests: XCTestCase {
         XCTAssertTrue(mainnet.externalDescriptor.contains("84'/0'/0'"), mainnet.externalDescriptor)
         XCTAssertTrue(mainnet.internalDescriptor.contains("84'/0'/0'"))
 
-        let testnet4 = try factory.restore(network: .testnet4, mnemonic: Self.mnemonic)
-        XCTAssertTrue(testnet4.externalDescriptor.contains("84'/1'/0'"), testnet4.externalDescriptor)
-        XCTAssertTrue(testnet4.internalDescriptor.contains("84'/1'/0'"))
+        let signet = try factory.restore(network: .signet, mnemonic: Self.mnemonic)
+        XCTAssertTrue(signet.externalDescriptor.contains("84'/1'/0'"), signet.externalDescriptor)
+        XCTAssertTrue(signet.internalDescriptor.contains("84'/1'/0'"))
 
         // External (.../0/*) and change (.../1/*) keychains are distinct.
-        XCTAssertNotEqual(testnet4.externalDescriptor, testnet4.internalDescriptor)
+        XCTAssertNotEqual(signet.externalDescriptor, signet.internalDescriptor)
         // Public descriptors only — no private key material may leak into stored metadata (§7).
-        XCTAssertFalse(testnet4.externalDescriptor.lowercased().contains("xprv"))
-        XCTAssertFalse(testnet4.externalDescriptor.lowercased().contains("tprv"))
+        XCTAssertFalse(signet.externalDescriptor.lowercased().contains("xprv"))
+        XCTAssertFalse(signet.externalDescriptor.lowercased().contains("tprv"))
         #endif
     }
 
@@ -138,8 +138,8 @@ final class BDKWalletEngineTests: XCTestCase {
         #else
         let (factory, dir) = makeFactory()
         defer { try? FileManager.default.removeItem(at: dir) }
-        let a = try factory.restore(network: .testnet4, mnemonic: Self.mnemonic)
-        let b = try factory.restore(network: .testnet4, mnemonic: Self.mnemonic)
+        let a = try factory.restore(network: .signet, mnemonic: Self.mnemonic)
+        let b = try factory.restore(network: .signet, mnemonic: Self.mnemonic)
         XCTAssertEqual(a.mnemonic, Self.mnemonic)
         XCTAssertEqual(a.externalDescriptor, b.externalDescriptor) // deterministic
         XCTAssertEqual(a.internalDescriptor, b.internalDescriptor)
@@ -154,7 +154,7 @@ final class BDKWalletEngineTests: XCTestCase {
         let (factory, dir) = makeFactory()
         defer { try? FileManager.default.removeItem(at: dir) }
         do {
-            _ = try factory.restore(network: .testnet4, mnemonic: "not a valid bip39 phrase at all")
+            _ = try factory.restore(network: .signet, mnemonic: "not a valid bip39 phrase at all")
             XCTFail("expected restore to throw on an invalid mnemonic")
         } catch let error as WalletError {
             XCTAssertEqual(error, WalletError.invalidMnemonic)
@@ -169,18 +169,18 @@ final class BDKWalletEngineTests: XCTestCase {
         #else
         let (factory, dir) = makeFactory()
         defer { try? FileManager.default.removeItem(at: dir) }
-        let keys = try factory.create(network: .testnet4, wordCount: 12)
+        let keys = try factory.create(network: .signet, wordCount: 12)
         XCTAssertEqual(keys.mnemonic.split(separator: " ").count, 12)
         XCTAssertTrue(keys.externalDescriptor.contains("84'/1'/0'"))
         // Round-trip: restoring the generated mnemonic reproduces the same descriptors.
-        let restored = try factory.restore(network: .testnet4, mnemonic: keys.mnemonic)
+        let restored = try factory.restore(network: .signet, mnemonic: keys.mnemonic)
         XCTAssertEqual(restored.externalDescriptor, keys.externalDescriptor)
         #endif
     }
 
     // MARK: - check_network
 
-    /// A Testnet4 wallet refuses to send to a mainnet address — address validation happens before
+    /// A L2L Signet wallet refuses to send to a mainnet address — address validation happens before
     /// any network I/O, so this exercises `check_network` without a live backend (Golden Rule §4/§6).
     func testSendRejectsForeignNetworkAddress() throws {
         #if SKIP
@@ -188,15 +188,15 @@ final class BDKWalletEngineTests: XCTestCase {
         #else
         let (factory, dir) = makeFactory()
         defer { try? FileManager.default.removeItem(at: dir) }
-        let keys = try factory.restore(network: .testnet4, mnemonic: Self.mnemonic)
-        let wallet = managedWallet(id: "cn-tn4", network: .testnet4, keys: keys)
+        let keys = try factory.restore(network: .signet, mnemonic: Self.mnemonic)
+        let wallet = managedWallet(id: "cn-tn4", network: .signet, keys: keys)
         let engine = try factory.engine(for: wallet, backendKind: "electrum", backendURL: "ssl://example.invalid:50002", backendProxy: nil, loadMnemonic: { Self.mnemonic })
         do {
-            // A mainnet (bc1) address on a testnet4 wallet must be rejected.
+            // A mainnet (bc1) address on a signet wallet must be rejected.
             _ = try engine.send(to: Self.mainnetExternal0,
                                 amount: Amount(sats: Int64(1000)),
                                 feeRate: FeeRate(satPerVByte: Int64(1)))
-            XCTFail("expected send to reject a mainnet address on a testnet4 wallet")
+            XCTFail("expected send to reject a mainnet address on a signet wallet")
         } catch let error as WalletError {
             XCTAssertEqual(error, WalletError.invalidAddress)
         }
@@ -214,8 +214,8 @@ final class BDKWalletEngineTests: XCTestCase {
         #else
         let (factory, dir) = makeFactory()
         defer { try? FileManager.default.removeItem(at: dir) }
-        let keys = try factory.restore(network: .testnet4, mnemonic: Self.mnemonic)
-        let wallet = managedWallet(id: "persist-rt", network: .testnet4, keys: keys)
+        let keys = try factory.restore(network: .signet, mnemonic: Self.mnemonic)
+        let wallet = managedWallet(id: "persist-rt", network: .signet, keys: keys)
 
         // First engine: reveal indices 0 and 1 (each call persists the advance).
         let first = try factory.engine(for: wallet, backendKind: "electrum", backendURL: "ssl://example.invalid:50002", backendProxy: nil, loadMnemonic: { Self.mnemonic })
@@ -246,13 +246,13 @@ final class BDKWalletEngineTests: XCTestCase {
         let factory = BDKWalletEngineFactory(chainDataDirectory: dir)
 
         let walletId = "purge-me"
-        let keys = try factory.restore(network: .testnet4, mnemonic: Self.mnemonic)
-        let wallet = managedWallet(id: walletId, network: .testnet4, keys: keys)
+        let keys = try factory.restore(network: .signet, mnemonic: Self.mnemonic)
+        let wallet = managedWallet(id: walletId, network: .signet, keys: keys)
         let engine = try factory.engine(for: wallet, backendKind: "electrum", backendURL: "ssl://example.invalid:50002", backendProxy: nil, loadMnemonic: { Self.mnemonic })
         _ = try engine.nextReceiveAddress() // forces a persisted write
 
         // Chain data is namespaced per (walletId × network): <walletId>-<network>.sqlite.
-        let sqlite = dir.appendingPathComponent("\(walletId)-testnet4.sqlite")
+        let sqlite = dir.appendingPathComponent("\(walletId)-signet.sqlite")
         XCTAssertTrue(FileManager.default.fileExists(atPath: sqlite.path), "store should exist after use")
 
         factory.purgeChainData(for: walletId)
@@ -273,16 +273,16 @@ final class BDKWalletEngineTests: XCTestCase {
         let factory = BDKWalletEngineFactory(chainDataDirectory: dir)
 
         let walletId = "legacy-wallet"
-        let keys = try factory.restore(network: .testnet4, mnemonic: Self.mnemonic)
-        let wallet = managedWallet(id: walletId, network: .testnet4, keys: keys)
+        let keys = try factory.restore(network: .signet, mnemonic: Self.mnemonic)
+        let wallet = managedWallet(id: walletId, network: .signet, keys: keys)
 
         // First open creates the network-scoped store; rename it (and siblings) back to the legacy
         // un-namespaced path to simulate a wallet from before this change.
         _ = try factory.engine(for: wallet, backendKind: "electrum", backendURL: "ssl://example.invalid:50002", backendProxy: nil, loadMnemonic: { Self.mnemonic })
-        let scoped = dir.appendingPathComponent("\(walletId)-testnet4.sqlite")
+        let scoped = dir.appendingPathComponent("\(walletId)-signet.sqlite")
         let legacy = dir.appendingPathComponent("\(walletId).sqlite")
         for suffix in ["", "-wal", "-shm"] {
-            let from = dir.appendingPathComponent("\(walletId)-testnet4.sqlite\(suffix)")
+            let from = dir.appendingPathComponent("\(walletId)-signet.sqlite\(suffix)")
             let to = dir.appendingPathComponent("\(walletId).sqlite\(suffix)")
             if FileManager.default.fileExists(atPath: from.path) {
                 try FileManager.default.moveItem(at: from, to: to)
@@ -301,18 +301,18 @@ final class BDKWalletEngineTests: XCTestCase {
     /// Sending from an EMPTY wallet surfaces `.insufficientFunds` — exercises the real send build
     /// path (TxBuilder→coin-selection→`CreateTxError`) and our typed→WalletError mapping, with NO
     /// funds and NO network (TxBuilder.finish fails locally, before any broadcast). The destination
-    /// is a same-network (testnet4) address so it passes the address check and reaches coin selection.
+    /// is a same-network (signet) address so it passes the address check and reaches coin selection.
     func testSendFromEmptyWalletIsInsufficientFunds() throws {
         #if SKIP
         throw XCTSkip("real BDK — host only")
         #else
         let (factory, dir) = makeFactory()
         defer { try? FileManager.default.removeItem(at: dir) }
-        let keys = try factory.restore(network: .testnet4, mnemonic: Self.mnemonic)
-        let wallet = managedWallet(id: "empty-send", network: .testnet4, keys: keys)
+        let keys = try factory.restore(network: .signet, mnemonic: Self.mnemonic)
+        let wallet = managedWallet(id: "empty-send", network: .signet, keys: keys)
         let engine = try factory.engine(for: wallet, backendKind: "electrum", backendURL: "ssl://example.invalid:50002", backendProxy: nil, loadMnemonic: { keys.mnemonic })
         do {
-            _ = try engine.send(to: Self.testnet4External0, // valid same-network address
+            _ = try engine.send(to: Self.signetExternal0, // valid same-network address
                                 amount: Amount(sats: Int64(10_000)),
                                 feeRate: FeeRate(satPerVByte: Int64(1)))
             XCTFail("expected insufficient-funds on an empty wallet")
@@ -332,8 +332,8 @@ final class BDKWalletEngineTests: XCTestCase {
         #else
         let (factory, dir) = makeFactory()
         defer { try? FileManager.default.removeItem(at: dir) }
-        let keys = try factory.restore(network: .testnet4, mnemonic: Self.mnemonic)
-        let wallet = managedWallet(id: "watch-only", network: .testnet4, keys: keys)
+        let keys = try factory.restore(network: .signet, mnemonic: Self.mnemonic)
+        let wallet = managedWallet(id: "watch-only", network: .signet, keys: keys)
 
         var mnemonicReads = 0
         let engine = try factory.engine(for: wallet, backendKind: "electrum", backendURL: "ssl://example.invalid:50002", backendProxy: nil, loadMnemonic: {
@@ -347,40 +347,17 @@ final class BDKWalletEngineTests: XCTestCase {
         _ = try engine.listUtxos()
 
         XCTAssertEqual(mnemonicReads, 0, "watch-only reads must never load the secret")
-        XCTAssertEqual(addr.address, Self.testnet4External0,
+        XCTAssertEqual(addr.address, Self.signetExternal0,
                        "watch-only build derives the same address as the keyed wallet")
         #endif
     }
 
     // MARK: - Live network (opt-in)
 
-    /// End-to-end `sync()` against the LIVE Testnet4 Electrum endpoint from `NetworkRegistry`.
-    /// OFF by default — it hits an external server (slow + flaky), so it's gated behind
-    /// `WALLETSERVICE_LIVE=1`; normal `swift test` skips it. Uses a FRESH random wallet so the
-    /// scan is fast and the expected balance is 0 (proves connect→fullScan→applyUpdate→persist
-    /// round-trips, off the main actor). Run: `WALLETSERVICE_LIVE=1 swift test --filter testLiveTestnet4Sync`.
-    func testLiveTestnet4Sync() async throws {
-        #if SKIP
-        throw XCTSkip("real BDK — host only")
-        #else
-        guard ProcessInfo.processInfo.environment["WALLETSERVICE_LIVE"] == "1" else {
-            throw XCTSkip("opt-in live-network test — set WALLETSERVICE_LIVE=1 to run")
-        }
-        let (factory, dir) = makeFactory()
-        defer { try? FileManager.default.removeItem(at: dir) }
-        let keys = try factory.create(network: .testnet4, wordCount: 12) // fresh, empty
-        let wallet = managedWallet(id: "live-tn4", network: .testnet4, keys: keys)
-        let engine = try factory.engine(for: wallet, backendKind: "electrum", backendURL: "ssl://example.invalid:50002", backendProxy: nil, loadMnemonic: { keys.mnemonic })
-
-        try await engine.sync() // must not throw against live Testnet4
-        XCTAssertEqual(try engine.balance(), Amount.zero) // fresh wallet → empty
-        XCTAssertTrue(try engine.transactions().isEmpty)
-        #endif
-    }
-
     /// End-to-end `sync()` against the LIVE Signet Electrum endpoint from `NetworkRegistry`
-    /// (`ssl://node.signet.drivechain.info:50002` — the L2L Drivechain signet, TLS). Same gating/shape
-    /// as the Testnet4 test: a fresh wallet → balance 0, proving connect→fullScan→applyUpdate→persist
+    /// (`ssl://node.signet.drivechain.info:50002` — the L2L Drivechain signet, TLS). OFF by default —
+    /// it hits an external server (slow + flaky), so it's gated behind `WALLETSERVICE_LIVE=1`; normal
+    /// `swift test` skips it. A fresh wallet → balance 0, proving connect→fullScan→applyUpdate→persist
     /// against this server. Run: `WALLETSERVICE_LIVE=1 swift test --filter testLiveSignetSync`.
     func testLiveSignetSync() async throws {
         #if SKIP
