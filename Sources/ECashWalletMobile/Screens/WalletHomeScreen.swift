@@ -196,30 +196,32 @@ struct WalletHomeScreen: View {
         .opacity(enabled ? 1 : 0.4)
     }
 
-    /// Sync state under the balance: a spinner while syncing, a tappable error on failure,
-    /// nothing when idle — pull-to-refresh is the manual sync gesture.
-    @ViewBuilder
+    /// Sync state under the balance: a spinner while syncing, a tappable error on failure, nothing
+    /// when idle — pull-to-refresh is the manual sync gesture. The row reserves a CONSTANT height in
+    /// every state (idle keeps the syncing row, just invisible), so the indicator popping in/out
+    /// never shifts the balance/actions below it (iOS + Android). A `ZStack` lets the failure button
+    /// grow wider than the syncing row without truncating, while idle/syncing keep the same size.
     private var syncStatus: some View {
-        switch app.syncState {
-        case .syncing:
+        ZStack {
             HStack(spacing: Theme.Space.x2) {
                 ProgressView()
                 Text("Syncing…", bundle: .module, comment: "sync in progress")
                     .textStyle(.xs)
                     .foregroundStyle(Theme.Colors.text2)
             }
-        case .failed(let message):
-            Button {
-                Task { await app.sync() }
-            } label: {
-                HStack(spacing: Theme.Space.x1) {
-                    Image(icon: Icon.refresh).resizable().scaledToFit().frame(width: 14, height: 14)
-                    Text(message).textStyle(.xs)
+            .opacity(app.syncState == .syncing ? 1 : 0)   // present (reserves space) but invisible unless syncing
+
+            if case .failed(let message) = app.syncState {
+                Button {
+                    Task { await app.sync() }
+                } label: {
+                    HStack(spacing: Theme.Space.x1) {
+                        Image(icon: Icon.refresh).resizable().scaledToFit().frame(width: 14, height: 14)
+                        Text(message).textStyle(.xs)
+                    }
+                    .foregroundStyle(Theme.Colors.negative)
                 }
-                .foregroundStyle(Theme.Colors.negative)
             }
-        case .idle:
-            EmptyView()
         }
     }
 
