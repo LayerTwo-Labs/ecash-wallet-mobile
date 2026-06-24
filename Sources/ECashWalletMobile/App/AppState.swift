@@ -38,9 +38,17 @@ final class AppState {
         didSet { UserDefaults.standard.set(balanceHidden, forKey: "balanceHidden") }
     }
 
+    /// Recovery-phrase length (12 or 24) for NEW wallets. Chosen ONCE in Settings, not per-wallet —
+    /// the create flow reads this so creating a wallet stays a single tap. Persisted; default 12
+    /// (plenty for most wallets; 24 adds entropy). Anything other than 24 normalizes to 12.
+    var newWalletWordCount: Int {
+        didSet { UserDefaults.standard.set(newWalletWordCount, forKey: Self.newWalletWordCountKey) }
+    }
+
     private static let selectedWalletKey = "selectedWalletId"
     private static let appLockKey = "appLockEnabled"
     private static let appLockGraceKey = "appLockGraceSeconds"
+    private static let newWalletWordCountKey = "newWalletWordCount"
 
     /// App-lock gate (biometric/passcode on launch + foreground resume). Default ON.
     let appLock: AppLockModel
@@ -120,6 +128,8 @@ final class AppState {
         // (those are WalletService implementation details — not part of the bridged surface).
         manager = WalletManager()
         balanceHidden = UserDefaults.standard.bool(forKey: "balanceHidden")
+        // New-wallet seed length: 24 if explicitly chosen, otherwise 12 (covers unset → default 12).
+        newWalletWordCount = (UserDefaults.standard.object(forKey: Self.newWalletWordCountKey) as? Int) == 24 ? 24 : 12
         try? manager.load()
         // Restore the active wallet across launches (manager.load defaults to the first wallet;
         // select is a no-op if the saved id no longer exists).

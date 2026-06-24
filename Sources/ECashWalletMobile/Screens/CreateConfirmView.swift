@@ -12,8 +12,8 @@ import WalletService
 /// All visuals are `Theme` tokens + shared components, so this is easy to restyle.
 struct CreateConfirmView: View {
     let defaultName: String
+    @Environment(AppState.self) var app
     @State var vm: CreateViewModel   // not `private` — Fuse bridges @State to Compose (skip-fuse rule)
-    @State var wordCount = 12        // recovery-phrase length (12 default; 24 offered)
     @State var network: WalletNetwork = .signet   // default to a testnet-class net; mainnet is deliberate
 
     init(viewModel: CreateViewModel, defaultName: String) {
@@ -40,22 +40,6 @@ struct CreateConfirmView: View {
                     .textStyle(.body)
                     .foregroundStyle(Theme.Colors.text1)
 
-                // Recovery-phrase length. 12 is plenty for most wallets; 24 adds entropy.
-                VStack(alignment: .leading, spacing: Theme.Space.x2) {
-                    Text("Recovery phrase length", bundle: .module, comment: "create: seed length label")
-                        .textStyle(.overline)
-                        .foregroundStyle(Theme.Colors.text2)
-                    Picker("Recovery phrase length", selection: $wordCount) {
-                        Text("12 words", bundle: .module, comment: "create: 12-word seed").tag(12)
-                        Text("24 words", bundle: .module, comment: "create: 24-word seed").tag(24)
-                    }
-                    .pickerStyle(.segmented)
-                    Text("12 words is plenty for most wallets. 24 adds extra entropy — more to write down.",
-                         bundle: .module, comment: "create: seed length explainer")
-                        .textStyle(.xs)
-                        .foregroundStyle(Theme.Colors.text2)
-                }
-
                 if let error = vm.errorMessage {
                     Text(error)
                         .textStyle(.sm)
@@ -68,7 +52,8 @@ struct CreateConfirmView: View {
                 WalletButton(title: vm.isCreating
                                 ? "Creating…"
                                 : "Continue") {
-                    vm.submit(label: defaultName, network: network, wordCount: wordCount)
+                    // Seed length is a global setting (Settings → New wallets), not a per-create choice.
+                    vm.submit(label: defaultName, network: network, wordCount: app.newWalletWordCount)
                 }
                 .disabled(vm.isCreating)
                 .opacity(vm.isCreating ? 0.6 : 1)

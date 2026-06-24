@@ -61,6 +61,22 @@ struct SettingsScreen: View {
                     }
                 }
             }
+            Section {
+                Menu {
+                    Button { app.newWalletWordCount = 12 } label: {
+                        Text("12 words", bundle: .module, comment: "new-wallet seed length: 12 words") }
+                    Button { app.newWalletWordCount = 24 } label: {
+                        Text("24 words", bundle: .module, comment: "new-wallet seed length: 24 words") }
+                } label: {
+                    menuRowLabel(Text("Recovery phrase length", bundle: .module, comment: "new-wallet seed length label"),
+                                 newWalletWordCountValueText)
+                }
+            } header: {
+                sectionHeader(Text("New wallets", bundle: .module, comment: "settings section: new wallets"))
+            } footer: {
+                Text("Length of the recovery phrase generated for new wallets. 12 words is plenty for most wallets; 24 adds extra entropy — more to write down.",
+                     bundle: .module, comment: "new-wallet seed length explainer")
+            }
             Section(header: sectionHeader(Text("Appearance", bundle: .module, comment: "settings section: appearance"))) {
                 Menu {
                     Button { appearance = "" } label: {
@@ -164,6 +180,12 @@ struct SettingsScreen: View {
         case "dark": return Text("Dark", bundle: .module, comment: "appearance: dark mode")
         default: return Text("System", bundle: .module, comment: "appearance: follow system")
         }
+    }
+
+    private var newWalletWordCountValueText: Text {
+        app.newWalletWordCount == 24
+            ? Text("24 words", bundle: .module, comment: "new-wallet seed length: 24 words")
+            : Text("12 words", bundle: .module, comment: "new-wallet seed length: 12 words")
     }
 
     private var autoLockValueText: Text {
