@@ -54,12 +54,53 @@ jobs:
           yes | "$SDKMANAGER" "ndk;27.2.12479018"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
 
+      # Cache the Swift Android SDK so re-runs skip the ~2-min download/install. Keyed to the Skip
+      # pin in Package.swift, so a Skip bump re-installs a matching SDK. `skip android sdk install`
+      # below is idempotent — it no-ops fast on a cache hit.
+      - name: Cache Swift Android SDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.swiftpm/swift-sdks
+            ~/Library/org.swift.swiftpm/swift-sdks
+          key: swift-android-sdk-${{ runner.os }}-${{ hashFiles('Package.swift') }}
+          restore-keys: |
+            swift-android-sdk-${{ runner.os }}-
+
       # Swift cross-compilation SDK for Android (the Fuse native-Android build).
       - name: Install Swift Android SDK (skip android sdk)
         run: skip android sdk install
 
       - name: Diagnose toolchain
         run: skip doctor || true
+
+      # Gradle's content-addressed caches + downloaded modules. Safe across machines (Gradle keys
+      # entries by task-input hashes). We deliberately do NOT cache the compiled Swift/Kotlin build
+      # products: this project's incremental Android transpile can desync when WalletService changes
+      # ("Cannot access … internal" — see the build-speed notes), so we cache only immutable layers
+      # and let the compile itself run clean each time.
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('Android/**/*.gradle*', 'Android/gradle.properties', 'Package.swift') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      # SwiftPM dependency SOURCES only (checkouts/repos/resolved artifacts) — avoids re-cloning BDK,
+      # secp256k1, Skip, etc. on every run. Excludes build products for the same reason as above.
+      - name: Cache SwiftPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build/checkouts
+            .build/repositories
+            .build/artifacts
+          key: spm-deps-${{ runner.os }}-${{ hashFiles('Package.swift', 'Packages/WalletService/Package.swift', 'Package.resolved') }}
+          restore-keys: |
+            spm-deps-${{ runner.os }}-
 
       # Debug, arm64 only, no iOS leg — the fast path (see scripts/run-android.sh comments).
       - name: Build debug APK
