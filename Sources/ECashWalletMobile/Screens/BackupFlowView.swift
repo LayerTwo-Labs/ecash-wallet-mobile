@@ -6,7 +6,7 @@ import SwiftUI
 import WalletService
 
 /// The Backup flow, presented full-screen from the Home warning or the Settings row:
-/// intro gate → device auth → reveal (numbered word chips, capture-blocked) → verify
+/// intro gate → device auth → reveal (numbered word chips) → verify
 /// (3 random words, tap the right chip) → done. Success marks the wallet backed up, which
 /// clears the Home warning. All visuals are `Theme` tokens.
 struct BackupFlowView: View {
@@ -32,13 +32,10 @@ struct BackupFlowView: View {
                 }
             }
         }
-        // Block screen capture while the flow can show seed words (Android FLAG_SECURE; on,
-        // then off when the flow leaves). iOS: obscured in the app switcher below.
-        .onAppear { PlatformBridge.setSecureScreen(true) }
-        .onDisappear {
-            PlatformBridge.setSecureScreen(false)
-            vm.wipe()
-        }
+        // Screenshots are intentionally NOT blocked on the seed screens — it's the user's call
+        // whether to capture their recovery phrase. We still wipe the in-memory phrase when the flow
+        // leaves; the app-switcher snapshot stays obscured (that's privacy, not a screenshot block).
+        .onDisappear { vm.wipe() }
         .obscuredWhenBackgrounded()
     }
 

@@ -10,8 +10,8 @@ import WalletService
 /// word list + checksum at submit; a rejection shows only the scrubbed user message, never the
 /// entered words (Golden Rule §2).
 ///
-/// All visuals are `Theme` tokens + shared components. Capture-blocked like the Backup reveal
-/// (FLAG_SECURE on Android, obscured-when-backgrounded on iOS) — it shows a live seed.
+/// All visuals are `Theme` tokens + shared components. It shows a live seed; screenshots are NOT
+/// blocked (the user's call), though the app-switcher snapshot is still obscured.
 struct ImportWalletView: View {
     let defaultName: String
     @State var vm: ImportViewModel   // not `private` — Fuse bridges @State to Compose (skip-fuse rule)
@@ -107,8 +107,7 @@ struct ImportWalletView: View {
             #endif
         }
         .navigationTitle(Text("Import wallet", bundle: .module, comment: "import wallet screen title"))
-        .onAppear { PlatformBridge.setSecureScreen(true) }
-        .onDisappear { PlatformBridge.setSecureScreen(false) }
+        // Screenshots intentionally allowed (the user's call); app-switcher snapshot still obscured.
         .obscuredWhenBackgrounded()
     }
 

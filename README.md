@@ -143,9 +143,9 @@ Your keys stay on your device, and the app is built to keep them exposed as litt
   foreground (with a configurable grace window so a quick trip to another app doesn't re-prompt),
   plus an independent auth gate on the **confirm-send** step. On a device with no biometric/passcode
   enrolled the gate passes through rather than locking you out.
-- **Guarded backup.** Revealing the phrase is behind an explicit gate + device auth, screenshots are
-  blocked during the reveal (Android `FLAG_SECURE`; obscured in the iOS app switcher), and you
-  confirm a few words before it's marked backed up.
+- **Guarded backup.** Revealing the phrase is behind an explicit gate + device auth, and you confirm
+  a few words before it's marked backed up. Screenshots aren't blocked — capturing your own recovery
+  phrase is your call (the app advises against it) — though the app-switcher snapshot stays obscured.
 - **Spendable balance (0-conf policy).** Only **confirmed coins + your own unconfirmed change** are
   treated as spendable. Coins you *received* that are still unconfirmed (0-conf) are shown separately
   as **pending** and are kept out of coin selection until they confirm — because an unconfirmed
