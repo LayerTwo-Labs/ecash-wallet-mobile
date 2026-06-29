@@ -102,6 +102,13 @@ jobs:
           restore-keys: |
             spm-deps-${{ runner.os }}-
 
+      # Firebase config (gitignored — not in the repo). The google-services Gradle plugin requires
+      # Android/app/google-services.json present at build time, so decode it from a repo secret.
+      # Create the secret: `base64 -i Android/app/google-services.json` → repo Settings → Secrets →
+      # Actions → GOOGLE_SERVICES_JSON_BASE64. (GoogleService-Info.plist is iOS-only; not needed here.)
+      - name: Write google-services.json
+        run: base64 -D <<< "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" > Android/app/google-services.json
+
       # Debug, arm64 only, no iOS leg — the fast path (see scripts/run-android.sh comments).
       - name: Build debug APK
         run: skip export --debug --no-ios --arch aarch64

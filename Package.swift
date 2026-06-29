@@ -21,6 +21,10 @@ let package = Package(
         .package(url: "https://github.com/fwcd/swift-qrcode-generator.git", from: "2.0.0"),
         // Camera-based QR/barcode SCANNER for the Send flow (scan-only; generation stays QRCodeGenerator).
         .package(url: "https://source.skip.tools/skip-qrcode.git", "0.0.1"..<"2.0.0"),
+        // Cross-platform push via the real Firebase SDKs (FCM on both platforms incl. iOS-over-APNs).
+        // Replaces skip-notify: we need topics + a single console broadcast to ALL devices, which the
+        // token-only skip-notify couldn't do. Used for manual announcements (docs/notifications.md).
+        .package(url: "https://github.com/skiptools/skip-firebase.git", "0.0.0"..<"2.0.0"),
         // The BDK seam lives in its own transpiled+bridged package (the SkipSQL pattern);
         // it carries the bdk-swift / bdk-android dependencies internally.
         .package(path: "Packages/WalletService")
@@ -30,6 +34,8 @@ let package = Package(
             .product(name: "SkipFuseUI", package: "skip-fuse-ui"),
             .product(name: "QRCodeGenerator", package: "swift-qrcode-generator"),
             .product(name: "SkipQRCode", package: "skip-qrcode"),
+            .product(name: "SkipFirebaseCore", package: "skip-firebase"),
+            .product(name: "SkipFirebaseMessaging", package: "skip-firebase"),
             .product(name: "WalletService", package: "WalletService")
         ], resources: [.process("Resources")], plugins: [.plugin(name: "skipstone", package: "skip")]),
         // View-model / pure-logic tests. XCTest so they run on the host (`SKIP_BRIDGE=1 swift test`)

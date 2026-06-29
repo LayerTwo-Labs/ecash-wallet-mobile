@@ -53,6 +53,7 @@ typealias AppType = NSApplication
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         AppDelegate.shared.onLaunch()
+        application.registerForRemoteNotifications()   // APNs → Firebase captures the token (FCM)
         return true
     }
 

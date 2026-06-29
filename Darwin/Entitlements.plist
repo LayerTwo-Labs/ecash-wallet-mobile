@@ -2,5 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Push notifications (APNs). "development" for dev/sideload builds; TestFlight/App Store builds
+	     require "production". Long-term the cleaner setup is enabling the Push Notifications capability
+	     in Xcode (which manages this per-build) + an APNs auth key on the App ID. -->
+	<key>aps-environment</key>
+	<string>development</string>
 </dict>
 </plist>

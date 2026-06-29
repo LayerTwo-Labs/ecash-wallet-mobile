@@ -57,6 +57,11 @@ final class AppState {
     /// per network (`PriceProviderRegistry`); fiat shows only for networks that have one (e.g. mainnet).
     let price = PriceService()
 
+    /// Push-notification client (Phase 1). Registered once the main shell appears (see MainTabView),
+    /// which fires the permission prompt + fetches the device token. Used only for manually-sent
+    /// broadcast announcements — no backend that knows wallet data (docs/notifications.md).
+    let push = PushNotificationService()
+
     /// Local per-network topic subscriptions (a client-side "follow" preference — CoinNews topics are
     /// per network, so this is keyed by network too).
     let topicSubscriptions = TopicSubscriptionStore()

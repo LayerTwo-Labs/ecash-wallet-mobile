@@ -87,5 +87,8 @@ struct MainTabView: View {
                 }
                 .tag(MainTab.settings)
         }
+        // Register for push once the main shell is reached (after onboarding). Fires the permission
+        // prompt + fetches the device token; idempotent, so this no-ops on later launches.
+        .task { await app.push.register() }
     }
 }

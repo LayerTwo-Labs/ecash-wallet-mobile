@@ -77,18 +77,12 @@ open class MainActivity: AppCompatActivity {
             }
         }
 
-        AppDelegate.shared.onLaunch()
+        // SkipFirebaseMessaging: hand the activity to FCM for message/intent routing. Notification
+        // permission (incl. Android 13+ POST_NOTIFICATIONS) is requested cross-platform via
+        // UNUserNotificationCenter in the app delegate's onLaunch.
+        skip.firebase.messaging.Messaging.messaging().onActivityCreated(this)
 
-        // Example of requesting permissions on startup.
-        // These must match the permissions in the AndroidManifest.xml file.
-        //let permissions = listOf(
-        //    Manifest.permission.ACCESS_COARSE_LOCATION,
-        //    Manifest.permission.ACCESS_FINE_LOCATION
-        //    Manifest.permission.CAMERA,
-        //    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-        //)
-        //let requestTag = 1
-        //ActivityCompat.requestPermissions(self, permissions.toTypedArray(), requestTag)
+        AppDelegate.shared.onLaunch()
     }
 
     override fun onStart() {

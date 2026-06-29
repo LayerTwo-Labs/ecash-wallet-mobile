@@ -141,6 +141,32 @@ struct SettingsScreen: View {
                      bundle: .module, comment: "developer reset explainer")
                     .textStyle(.xs)
                     .foregroundStyle(Theme.Colors.text2)
+
+                // Phase 1 push notifications: register the device + reveal the token so we can send a
+                // test push (Firebase console for Android; an APNs sender for iOS). Dev-only for now.
+                Button { Task { await app.push.register() } } label: {
+                    Text(app.push.status == .working ? "Registering…" : "Register for push notifications",
+                         bundle: .module, comment: "developer: push register button")
+                        .textStyle(.body)
+                        .foregroundStyle(Theme.Colors.text0)
+                }
+                .disabled(app.push.status == .working)
+
+                pushStatusText
+                    .textStyle(.xs)
+                    .foregroundStyle(Theme.Colors.text2)
+
+                if let token = app.push.token {
+                    Button { Clipboard.copy(token) } label: {
+                        Text("Copy push token", bundle: .module, comment: "developer: copy push token")
+                            .textStyle(.body)
+                            .foregroundStyle(Theme.Colors.accent)
+                    }
+                    Text(verbatim: token)
+                        .font(.jbMono(11, .regular))
+                        .foregroundStyle(Theme.Colors.text2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
         .groupedListStyle()
@@ -179,6 +205,15 @@ struct SettingsScreen: View {
         case "light": return Text("Light", bundle: .module, comment: "appearance: light mode")
         case "dark": return Text("Dark", bundle: .module, comment: "appearance: dark mode")
         default: return Text("System", bundle: .module, comment: "appearance: follow system")
+        }
+    }
+
+    private var pushStatusText: Text {
+        switch app.push.status {
+        case .idle: return Text("Not registered", bundle: .module, comment: "push status: not registered")
+        case .working: return Text("Registering…", bundle: .module, comment: "push status: working")
+        case .registered: return Text("Registered — token below", bundle: .module, comment: "push status: registered")
+        case .failed(let message): return Text(verbatim: "Failed: \(message)")
         }
     }
 

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Accent color for FCM notifications (default_notification_color) — eCash brand amber. -->
+<resources>
+    <color name="notification_accent">#E8A84A</color>
+</resources>
