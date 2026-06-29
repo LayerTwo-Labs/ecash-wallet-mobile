@@ -1,9 +1,14 @@
 # Importing a BitWindow wallet — design record
 
-> **Status:** PROPOSED (feature not built) — but the **core derivation is VERIFIED** (see §2).
-> Lets a user move funds from BitWindow (Drivechain / Layer Two Labs desktop app) into this wallet.
-> Distinct from `docs/advanced-import.md` (general script-type/path import) — that does **not** solve
-> BitWindow; this does.
+> **Status: DECLINED for now (2026-06-29) — kept as reference.** Not worth building: too few users
+> coming from BitWindow to justify it, AND **BitWindow is collapsing `master` = `l1`** going forward,
+> so the mismatch self-resolves on newer BitWindow versions. The in-app "Importing from BitWindow?"
+> hint was added and then **removed** for the same reason. The **core derivation below is VERIFIED**
+> (§2) — retained so that if BitWindow interop ever becomes worthwhile (e.g. many legacy-version
+> users), the work is captured and doesn't need redoing.
+>
+> Distinct from `docs/advanced-import.md` (general script-type/path import), which remains a valid
+> future idea on its own and is unaffected by this decision.
 
 ## 1. The problem (root cause)
 A user imported their BitWindow recovery phrase, the import "succeeded," but **no balance**. Cause:
