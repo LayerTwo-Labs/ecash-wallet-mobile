@@ -110,10 +110,24 @@ jobs:
       - name: Write google-services.json
         run: base64 -D <<< "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" > Android/app/google-services.json
 
+      # The release signingConfig falls back to the debug keystore (see Android/app/build.gradle.kts).
+      # On a dev machine that keystore already exists; on a fresh CI runner building ONLY release it
+      # may not be auto-created, so signing/packaging fails. Create the canonical debug keystore
+      # (fixed alias/passwords AGP expects) up front so the release APK signs.
+      - name: Ensure Android debug keystore exists (release signs with it)
+        run: |
+          KS="$HOME/.android/debug.keystore"
+          if [ ! -f "$KS" ]; then
+            mkdir -p "$HOME/.android"
+            keytool -genkeypair -v -keystore "$KS" -storepass android -alias androiddebugkey \
+              -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
       # Release, arm64 only, no iOS leg. Release (not debug) because it's ~85MB smaller (R8 minify +
       # optimized Swift) AND faster at runtime, and it needs NO extra secrets — the release
-      # signingConfig in Android/app/build.gradle.kts signs with the auto-generated debug keystore,
-      # so this is still a freely-sideloadable, debug-key-signed APK (same as before, just smaller).
+      # signingConfig signs with the debug keystore ensured above, so this is still a freely-
+      # sideloadable, debug-key-signed APK (same as before, just smaller).
       - name: Build release APK
         run: skip export --release --no-ios --arch aarch64
 
@@ -141,3 +155,29 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "${{ github.event.release.tag_name }}" "${{ steps.apk.outputs.path }}" --clobber
+
+      # --- Failure diagnostics -------------------------------------------------------------------
+      # Skip writes a detailed log to /tmp/skip-export-*.txt on the runner, which is destroyed when
+      # the job ends. On failure, print its tail to the Actions console AND upload the full logs +
+      # Gradle reports as an artifact, so the real error is retrievable after the run.
+      - name: Print Skip export log on failure
+        if: failure()
+        run: |
+          echo "===================== skip export detailed log(s) ====================="
+          shopt -s nullglob
+          for f in /tmp/skip-export-*.txt; do
+            echo "----- $f -----"
+            tail -c 300000 "$f"
+          done
+          echo "===================== Gradle text reports ====================="
+          find .build -path "*reports*" -name "*.txt" -exec sh -c 'echo "----- $1 -----"; cat "$1"' _ {} \; 2>/dev/null | head -c 200000 || true
+
+      - name: Upload failure logs
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: skip-export-failure-logs
+          path: |
+            /tmp/skip-export-*.txt
+            .build/Android/**/reports/**
+          if-no-files-found: warn
