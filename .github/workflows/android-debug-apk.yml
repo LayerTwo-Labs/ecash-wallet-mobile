@@ -110,11 +110,30 @@ jobs:
       - name: Write google-services.json
         run: base64 -D <<< "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" > Android/app/google-services.json
 
-      # The release signingConfig falls back to the debug keystore (see Android/app/build.gradle.kts).
-      # On a dev machine that keystore already exists; on a fresh CI runner building ONLY release it
-      # may not be auto-created, so signing/packaging fails. Create the canonical debug keystore
-      # (fixed alias/passwords AGP expects) up front so the release APK signs.
-      - name: Ensure Android debug keystore exists (release signs with it)
+      # Sign every release with the SAME stable keystore so sideloaded updates install in place
+      # (a different key each build → "signature mismatch" → users must uninstall+reinstall, losing
+      # data). Decode the repo's release keystore + its keystore.properties from secrets into the
+      # module dir; build.gradle.kts's release signingConfig picks up keystore.properties when present.
+      # (This is the same key local release builds already use.) Set these two secrets:
+      #   ANDROID_KEYSTORE_BASE64            = base64 of Android/app/keystore.jks
+      #   ANDROID_KEYSTORE_PROPERTIES_BASE64 = base64 of Android/app/keystore.properties
+      - name: Set up release signing keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PROPS_B64: ${{ secrets.ANDROID_KEYSTORE_PROPERTIES_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PROPS_B64" ]; then
+            base64 -D <<< "$KEYSTORE_B64" > Android/app/keystore.jks
+            base64 -D <<< "$KEYSTORE_PROPS_B64" > Android/app/keystore.properties
+            echo "Signing with the stable release keystore → in-place updates."
+          else
+            echo "::warning::No signing-keystore secrets set — falling back to a per-run debug key, so users must UNINSTALL+reinstall to update. Add ANDROID_KEYSTORE_BASE64 + ANDROID_KEYSTORE_PROPERTIES_BASE64 to fix."
+          fi
+
+      # Fallback only: if no stable keystore was provided above, the release signingConfig falls back
+      # to the debug keystore (Android/app/build.gradle.kts), which a fresh runner won't have — create
+      # the canonical one so the build at least still produces a (per-run-signed) APK.
+      - name: Ensure Android debug keystore exists (fallback signing)
         run: |
           KS="$HOME/.android/debug.keystore"
           if [ ! -f "$KS" ]; then
